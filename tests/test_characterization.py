@@ -38,14 +38,24 @@ def to_params(inp: dict) -> Params:
         labor_pension_monthly=inp.get("labor_pension_monthly", 0.0),
         labor_pension_start_age=inp.get("labor_pension_start_age", 0),
         other_income=inp.get("other_income", 0.0),
-        pre_retirement_return=inp["pre_retirement_return"],
-        post_retirement_return=inp["post_retirement_return"],
-        inflation_rate=inp["inflation_rate"],
+        # golden set 的多數組別省略這三個欄位，沿用 Params 的預設值
+        pre_retirement_return=inp.get("pre_retirement_return", 0.08),
+        post_retirement_return=inp.get("post_retirement_return", 0.04),
+        inflation_rate=inp.get("inflation_rate", 0.02),
         lump_sums=tuple(LumpSum(**l) for l in inp.get("lump_sums", [])),
     )
 
 
-@pytest.mark.parametrize("case", GOLDEN["cases"], ids=lambda c: c["id"])
+def _case_id(case: dict) -> str:
+    """帶 locks_defect 的組別在測試名稱上就標出來，`pytest -v` 一眼看得到。
+
+    否則 `bd_no_savings` 的期望值（真實餘額 -21,232,803、圖表 0）混在
+    其他 22 組裡，看不出它鎖的是缺陷而不是正確行為。
+    """
+    return case["id"] + ("[鎖缺陷]" if "locks_defect" in case else "")
+
+
+@pytest.mark.parametrize("case", GOLDEN["cases"], ids=_case_id)
 def test_behavior_is_pinned(case):
     """每一組的輸出必須與 golden set 記錄的完全一致。"""
     r = calculate(to_params(case["input"]))

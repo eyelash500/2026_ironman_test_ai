@@ -1,4 +1,4 @@
-# test-the-tests
+# 2026_ironman_test_ai
 
 《AI 寫的測試，誰來測？》— 2026 iThome 鐵人賽系列的程式資產。
 
@@ -8,7 +8,28 @@
 
 一個 QA 把自己上線一年的退休試算工具翻出來驗屍，並且回答一個問題：**AI 寫的測試，誰來測？**
 
-系列文章：<https://ithelp.ithome.com.tw/users/20103826/ironman>
+系列文章：<https://ithelp.ithome.com.tw/users/20103826/ironman/9466>
+
+## 每天的 repo 長什麼樣
+
+主分支會一路長到 Day 30。想看某一天當下的完整狀態，點該天的 tag，
+那個網址永遠顯示那天的樣子——不會被之後的進度蓋掉。
+
+| 天 | 文章 | 當天的 repo | 這天的異動 |
+|---|---|---|---|
+| Day 1 | [我的退休試算上線一年，我檢查過，它「沒問題」？](https://ithelp.ithome.com.tw/articles/10406889) | — | |
+| Day 2 | [三招驗證法，為什麼一招都沒中？](https://ithelp.ithome.com.tw/articles/10407106) | — | |
+| Day 3 | [四個缺陷的驗屍報告](https://ithelp.ithome.com.tw/articles/10407126) | — | |
+| Day 4 | [那個 (1+r) 是怎麼來的](https://ithelp.ithome.com.tw/articles/10407397) | — | |
+| Day 5 | [打造影子模型：抽取，還是重寫？](https://ithelp.ithome.com.tw/articles/10407729) | — | 寫了 `oracle/`、`shadow/`，但當天還沒有 commit |
+| Day 6 | [500 組差分，第一次就掛了](https://ithelp.ithome.com.tw/articles/10407970) | [`day06`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day06) | repo 公開。`sut/`、`oracle/`、`shadow/`、`tests/test_differential.py` |
+| Day 7 | 把錯的行為，正式寫進測試裡 | [`day07`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day07) | `golden/` 加 `locks_defect` 標記；修好 `test_characterization.py` 的 `KeyError` |
+
+Day 1–5 沒有 tag，因為 repo 是 Day 6 才建立的——補打只會指到當天並不存在的狀態。
+**寧可留白，不要假的時間戳。**
+
+`day06` 裡已經有 `golden/` 和 `test_characterization.py`，那是 Day 7 的東西：
+程式跑在文章前面一步。照實記著，不回頭修飾。
 
 ## 受測物
 

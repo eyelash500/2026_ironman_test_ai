@@ -21,7 +21,29 @@ Characterization set：記錄受測物**現在**的行為，**包含已知缺陷
 
 ## ⚠️ 這些斷言鎖住的是缺陷
 
-`bd_no_savings` 這組記錄的是 `final_balance_raw: -21232802.86` 對
+`bd_no_savings` 這組記錄的是 `final_balance_raw: -21232803.177890684` 對
 `final_balance_charted: 0.0`。修好 374 行的夾 0 之後，這條會變紅。**那是預期行為。**
 
-Day 30 修復時，用這份 set 分辨「修好了」與「順手改壞了別的」。
+## `locks_defect` 欄位
+
+23 組裡有 **8 組**的 `expected` 值本身就是缺陷的產物。它們帶有 `locks_defect`
+欄位，寫明鎖的是哪一個缺陷、機制是什麼：
+
+| id | 類別 | 鎖住的缺陷 |
+|---|---|---|
+| `bd_zero_return` | 邊界 | A'：真實餘額為負，圖表夾 0 |
+| `bd_no_savings` | 邊界 | A' |
+| `bd_high_infl` | 邊界 | A' |
+| `def_ap_clamp` | 缺陷現況 | A' |
+| `def_b_inverted` | 缺陷現況 | B：壽命 <= 退休年齡，提領迴圈不執行 |
+| `def_b_equal` | 缺陷現況 | B |
+| `def_c_ghost` | 缺陷現況 | C：超過壽命的大筆支出計入目標卻不上圖 |
+| `def_c_ghost_far` | 缺陷現況 | C |
+
+**注意「邊界」組裡也有三組。** 缺陷不會只出現在標著「缺陷」的地方——
+`bd_zero_return`、`bd_no_savings`、`bd_high_infl` 都是為了測邊界而寫的，
+卻順帶把 A' 的夾 0 一起鎖了進去。這就是為什麼要有這個欄位：分類是人給的，
+缺陷不看分類。
+
+Day 30 修復時，用這份 set 分辨「修好了」與「順手改壞了別的」。帶
+`locks_defect` 的那 8 組變紅是預期的；其餘 15 組變紅才需要追。

@@ -2,7 +2,7 @@
   "version": "v1",
   "generated": "2026-09-04",
   "source": "shadow/calc.py",
-  "note": "這是 characterization set，記錄的是受測物「現在」的行為，包含已知缺陷。不是正確答案。",
+  "note": "這是 characterization set，記錄的是受測物「現在」的行為，包含已知缺陷。不是正確答案。有 locks_defect 欄位的組別，其 expected 值本身就是缺陷的產物——它們通過，代表缺陷還在。",
   "count": 23,
   "cases": [
     {
@@ -89,6 +89,7 @@
       "id": "bd_zero_return",
       "desc": "報酬率 0%",
       "group": "邊界",
+      "locks_defect": "A'：最終真實餘額為負，圖表資料被夾成 0",
       "input": {
         "current_age": 42,
         "retirement_age": 65,
@@ -152,6 +153,7 @@
       "id": "bd_no_savings",
       "desc": "零本金零月存",
       "group": "邊界",
+      "locks_defect": "A'：最終真實餘額為負，圖表資料被夾成 0",
       "input": {
         "current_age": 42,
         "retirement_age": 65,
@@ -194,6 +196,7 @@
       "id": "bd_high_infl",
       "desc": "通膨 6%",
       "group": "邊界",
+      "locks_defect": "A'：最終真實餘額為負，圖表資料被夾成 0",
       "input": {
         "current_age": 42,
         "retirement_age": 65,
@@ -417,6 +420,7 @@
       "id": "def_b_inverted",
       "desc": "缺陷B：壽命60<退休65",
       "group": "缺陷現況",
+      "locks_defect": "B：壽命 <= 退休年齡，提領迴圈不執行，目標金額為 0",
       "input": {
         "current_age": 42,
         "retirement_age": 65,
@@ -437,6 +441,7 @@
       "id": "def_b_equal",
       "desc": "缺陷B：壽命=退休年齡",
       "group": "缺陷現況",
+      "locks_defect": "B：壽命 <= 退休年齡，提領迴圈不執行，目標金額為 0",
       "input": {
         "current_age": 42,
         "retirement_age": 65,
@@ -457,6 +462,7 @@
       "id": "def_c_ghost",
       "desc": "缺陷C：95歲200萬、壽命85",
       "group": "缺陷現況",
+      "locks_defect": "C：超過壽命的大筆支出計入目標金額，卻不出現在圖表",
       "input": {
         "current_age": 42,
         "retirement_age": 65,
@@ -483,6 +489,7 @@
       "id": "def_c_ghost_far",
       "desc": "缺陷C：100歲500萬",
       "group": "缺陷現況",
+      "locks_defect": "C：超過壽命的大筆支出計入目標金額，卻不出現在圖表",
       "input": {
         "current_age": 42,
         "retirement_age": 65,
@@ -509,6 +516,7 @@
       "id": "def_ap_clamp",
       "desc": "缺陷A’：資產耗盡、圖表夾0",
       "group": "缺陷現況",
+      "locks_defect": "A'：最終真實餘額為負，圖表資料被夾成 0",
       "input": {
         "current_age": 42,
         "retirement_age": 65,
