@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互動式退休金缺口計算機</title>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-P0T4VKVGXV"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-P0T4VKVGXV');
+    </script>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Chart.js 圖表庫 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- 引入 Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+        /* 自訂滑桿樣式以匹配木質調主題 */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #a16207; /* text-yellow-800 */
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+            margin-top: -8px; /* 垂直置中 */
+        }
+        input[type=range]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #a16207; /* text-yellow-800 */
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            height: 4px;
+            border-radius: 2px;
+        }
+        input[type=range]::-moz-range-track {
+            height: 4px;
+            border-radius: 2px;
+        }
+        /* 移除 number input 的箭頭 */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+          -webkit-appearance: none; 
+          margin: 0; 
+        }
+        input[type=number] {
+          -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body class="bg-amber-50 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-stone-200 p-6 md:p-10 space-y-8">
+        
+        <!-- 標題 -->
+        <div class="text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-stone-800">退休金缺口計算機</h1>
+            <p class="text-stone-500 mt-2">溫暖規劃，迎接安穩的退休生活。</p>
+        </div>
+
+        <!-- 輸入區塊 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-6">
+            
+            <!-- 左側輸入欄位 -->
+            <div class="space-y-4">
+                <div>
+                    <label for="currentAge" class="block text-sm font-medium text-stone-600">目前年齡</label>
+                    <input type="number" id="currentAge" value="30" class="mt-1 block w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm shadow-sm placeholder-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600">
+                </div>
+                <div>
+                    <label for="retirementAge" class="block text-sm font-medium text-stone-600">預計退休年齡</label>
+                    <input type="number" id="retirementAge" value="65" class="mt-1 block w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm shadow-sm placeholder-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600">
+                </div>
+                <div>
+                    <label for="expectedLifespan" class="block text-sm font-medium text-stone-600">預計壽命</label>
+                    <input type="number" id="expectedLifespan" value="90" class="mt-1 block w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm shadow-sm placeholder-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600">
+                </div>
+                <div>
+                    <label for="currentSavings" class="block text-sm font-medium text-stone-600">目前已準備的退休金 (元)</label>
+                    <input type="number" id="currentSavings" value="500000" class="mt-1 block w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm shadow-sm placeholder-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600">
+                </div>
+                 <div>
+                    <label for="monthlyInvestment" class="block text-sm font-medium text-stone-600">每個月預計投入的金額 (元)</label>
+                    <input type="number" id="monthlyInvestment" value="10000" class="mt-1 block w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm shadow-sm placeholder-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600">
+                </div>
+                <!-- 退休後花費細項 -->
+                <div class="space-y-4 border-t border-stone-200 pt-4 mt-4">
+                    <label class="block text-sm font-bold text-stone-700">退休後預計每月花費 (元)</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3">
+                        <div>
+                            <label for="expenseFood" class="block text-xs font-medium text-stone-500">食</label>
+                            <input type="number" id="expenseFood" value="12000" class="mt-1 block w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm shadow-sm placeholder-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600">
+                        </div>
+                        <div>
+                            <label for="expenseClothing" class="block text-xs font-medium text-stone-500">衣</label>
+                            <input type="number" id="expenseClothing" value="3000" class="mt-1 block w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm shadow-sm placeholder-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600">
+                        </div>
+                        <div>
+                            <label for="expenseHousing" class="block text-xs font-medium text-stone-500">住</label>
+                            <input type="number" id="expenseHousing" value="15000" class="mt-1 block w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm shadow-sm placeholder-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600">
+                        </div>
+                        <div>
+                            <label for="expenseTransportation" class="block text-xs font-medium text-stone-500">行</label>
+                            <input type="number" id="expenseTransportation" value="4000" class="mt-1 block w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm shadow-sm placeholder-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600">
+                        </div>
+                        <div>
+                            <label for="expenseEducation" class="block text-xs font-medium text-stone-500">育</label>
+                            <input type="number" id="expenseEducation" value="2000" class="mt-1 block w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm shadow-sm placeholder-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600">
+                        </div>
+                        <div>
+                            <label for="expenseLeisure" class="block text-xs font-medium text-stone-500">樂</label>
+                            <input type="number" id="expenseLeisure" value="4000" class="mt-1 block w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm shadow-sm placeholder-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600">
+                        </div>
+                    </div>
+                     <div class="text-right pr-1 pt-1">
+                        <span class="text-sm font-medium text-stone-500">總計: </span>
+                        <span id="totalExpenseDisplay" class="font-bold text-yellow-800">NT$ 40,000</span>
+                    </div>
+                </div>
+                <!-- 退休後一次性大額支出 -->
+                <div class="space-y-3 border-t border-stone-200 pt-4 mt-4">
+                    <label class="block text-sm font-bold text-stone-700">一次性大額支出</label>
+                    <div id="oneTimeExpensesContainer" class="space-y-2">
+                        <!-- 動態新增的支出項目會放在這裡 -->
+                    </div>
+                    <button id="addExpenseBtn" class="w-full text-sm border border-amber-700 text-amber-800 hover:bg-amber-50 font-medium py-2 px-4 rounded-lg transition">
+                        + 新增支出
+                    </button>
+                </div>
+                <!-- 退休後年度固定支出 -->
+                <div class="space-y-3 border-t border-stone-200 pt-4 mt-4">
+                    <label class="block text-sm font-bold text-stone-700">退休後年度固定支出</label>
+                    <div id="annualExpensesContainer" class="space-y-2">
+                        <!-- 動態新增的年度支出會放在這裡 -->
+                    </div>
+                    <button id="addAnnualExpenseBtn" class="w-full text-sm border border-amber-700 text-amber-800 hover:bg-amber-50 font-medium py-2 px-4 rounded-lg transition">
+                        + 新增年度支出
+                    </button>
+                </div>
+            </div>
+
+            <!-- 右側參數調整 -->
+            <div class="space-y-6 bg-stone-50 p-6 rounded-xl border border-stone-200">
+                <div>
+                    <label for="returnRate" class="block text-sm font-medium text-stone-600">預期年化投資報酬率 (%)</label>
+                    <div class="flex items-center space-x-3 mt-2">
+                        <input type="range" id="returnRate" min="0" max="15" value="6" step="0.5" class="w-full h-1 bg-stone-200 rounded-lg appearance-none cursor-pointer">
+                        <span id="returnRateValue" class="font-bold text-yellow-800 text-lg w-16 text-center">6.0%</span>
+                    </div>
+                </div>
+                 <div>
+                    <label for="inflationRate" class="block text-sm font-medium text-stone-600">預期通貨膨脹率 (%)</label>
+                    <div class="flex items-center space-x-3 mt-2">
+                        <input type="range" id="inflationRate" min="0" max="5" value="2" step="0.1" class="w-full h-1 bg-stone-200 rounded-lg appearance-none cursor-pointer">
+                        <span id="inflationRateValue" class="font-bold text-yellow-800 text-lg w-16 text-center">2.0%</span>
+                    </div>
+                </div>
+                <div class="pt-4">
+                    <button id="calculateBtn" class="w-full bg-amber-700 hover:bg-amber-800 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all transform hover:scale-105">
+                        開始計算
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 結果顯示區塊 (預設隱藏) -->
+        <div id="results" class="hidden space-y-8 pt-8 border-t border-stone-200">
+            <h2 class="text-2xl font-bold text-center text-stone-800">計算結果分析</h2>
+
+            <!-- 總資產與缺口 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-center">
+                <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-xl shadow-sm">
+                    <p class="text-sm text-emerald-700 font-medium">預計退休時累積總資產</p>
+                    <p id="totalAssets" class="text-2xl md:text-3xl font-bold text-emerald-800 mt-1">NT$ 0</p>
+                </div>
+                <div id="gapContainer" class="p-4 rounded-xl shadow-sm">
+                    <p class="text-sm font-bold">資金缺口</p>
+                    <p id="savingsGap" class="text-2xl md:text-3xl font-bold mt-1">NT$ 0</p>
+                </div>
+            </div>
+
+            <!-- 圖表 -->
+            <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm">
+                 <canvas id="assetChart" style="height: 300px;"></canvas>
+            </div>
+           
+            <!-- 總結建議 -->
+            <div class="bg-stone-50 border border-stone-200 p-6 rounded-xl">
+                <h3 class="font-bold text-lg text-stone-800 mb-2">總結與建議</h3>
+                <p id="summaryText" class="text-stone-600 leading-relaxed whitespace-pre-line"></p>
+            </div>
+        </div>
+
+    </div>
+
+    <footer class="text-center text-xs text-stone-500 py-6">
+        <a href="https://ithelp.ithome.com.tw/users/20103826/ironman/8423" class="hover:underline">30 天打造你的 AI 客戶金融助理團隊</a> © 2025 by <a href="https://www.linkedin.com/in/tony-wu-5baa4b81/" class="hover:underline">Eyelash＊睫毛</a> is licensed under <a href="https://creativecommons.org/licenses/by-nd/4.0/" class="hover:underline">CC BY-ND 4.0</a><img src="https://mirrors.creativecommons.org/presskit/icons/cc.svg" alt="Creative Commons" style="max-width: 1em;max-height:1em;margin-left: .2em;display: inline-block;vertical-align: middle;"><img src="https://mirrors.creativecommons.org/presskit/icons/by.svg" alt="Attribution" style="max-width: 1em;max-height:1em;margin-left: .2em;display: inline-block;vertical-align: middle;"><img src="https://mirrors.creativecommons.org/presskit/icons/nd.svg" alt="No Derivatives" style="max-width: 1em;max-height:1em;margin-left: .2em;display: inline-block;vertical-align: middle;">
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // 用於數字格式化的輔助工具
+            const formatter = new Intl.NumberFormat('zh-TW', {
+                style: 'currency',
+                currency: 'TWD',
+                minimumFractionDigits: 0
+            });
+
+            // DOM 元素
+            const currentAgeEl = document.getElementById('currentAge');
+            const retirementAgeEl = document.getElementById('retirementAge');
+            const expectedLifespanEl = document.getElementById('expectedLifespan');
+            const currentSavingsEl = document.getElementById('currentSavings');
+            const monthlyInvestmentEl = document.getElementById('monthlyInvestment');
+            
+            // 花費細項元素
+            const expenseFoodEl = document.getElementById('expenseFood');
+            const expenseClothingEl = document.getElementById('expenseClothing');
+            const expenseHousingEl = document.getElementById('expenseHousing');
+            const expenseTransportationEl = document.getElementById('expenseTransportation');
+            const expenseEducationEl = document.getElementById('expenseEducation');
+            const expenseLeisureEl = document.getElementById('expenseLeisure');
+            const totalExpenseDisplayEl = document.getElementById('totalExpenseDisplay');
+            const expenseInputs = [expenseFoodEl, expenseClothingEl, expenseHousingEl, expenseTransportationEl, expenseEducationEl, expenseLeisureEl];
+
+            // 一次性支出元素
+            const addExpenseBtn = document.getElementById('addExpenseBtn');
+            const oneTimeExpensesContainer = document.getElementById('oneTimeExpensesContainer');
+            
+            // 年度固定支出元素
+            const addAnnualExpenseBtn = document.getElementById('addAnnualExpenseBtn');
+            const annualExpensesContainer = document.getElementById('annualExpensesContainer');
+
+            const returnRateEl = document.getElementById('returnRate');
+            const inflationRateEl = document.getElementById('inflationRate');
+            const returnRateValueEl = document.getElementById('returnRateValue');
+            const inflationRateValueEl = document.getElementById('inflationRateValue');
+            const calculateBtn = document.getElementById('calculateBtn');
+            const resultsEl = document.getElementById('results');
+            const totalAssetsEl = document.getElementById('totalAssets');
+            const savingsGapEl = document.getElementById('savingsGap');
+            const summaryTextEl = document.getElementById('summaryText');
+            const gapContainerEl = document.getElementById('gapContainer');
+            const chartCanvas = document.getElementById('assetChart');
+
+            let assetChart = null;
+
+            // 即時更新花費總計
+            function updateTotalExpenseDisplay() {
+                const total = expenseInputs.reduce((sum, input) => sum + (parseFloat(input.value) || 0), 0);
+                totalExpenseDisplayEl.textContent = formatter.format(total);
+            }
+            expenseInputs.forEach(input => input.addEventListener('input', updateTotalExpenseDisplay));
+            updateTotalExpenseDisplay(); // 初始化顯示
+
+            // 新增一次性支出項目
+            addExpenseBtn.addEventListener('click', () => {
+                const newExpenseRow = document.createElement('div');
+                newExpenseRow.className = 'flex items-center space-x-2 expense-row';
+                newExpenseRow.innerHTML = `
+                    <input type="number" placeholder="支出發生年齡" class="one-time-age mt-1 block w-1/3 px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm shadow-sm placeholder-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600">
+                    <input type="number" placeholder="支出金額" class="one-time-amount mt-1 block w-2/3 px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm shadow-sm placeholder-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600">
+                    <button class="remove-expense-btn text-stone-400 hover:text-red-500 transition text-2xl font-bold leading-none flex-shrink-0 pb-1">&times;</button>
+                `;
+                oneTimeExpensesContainer.appendChild(newExpenseRow);
+            });
+            
+            // 新增年度固定支出項目
+            addAnnualExpenseBtn.addEventListener('click', () => {
+                const newRow = document.createElement('div');
+                newRow.className = 'grid grid-cols-12 gap-2 items-center annual-expense-row';
+                newRow.innerHTML = `
+                    <input type="text" placeholder="支出項目" class="annual-expense-item col-span-4 mt-1 block w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm shadow-sm placeholder-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600">
+                    <input type="number" placeholder="每年金額" class="annual-expense-amount col-span-4 mt-1 block w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm shadow-sm placeholder-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600">
+                    <input type="number" placeholder="持續年期" class="annual-expense-duration col-span-3 mt-1 block w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm shadow-sm placeholder-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600">
+                    <button class="remove-expense-btn text-stone-400 hover:text-red-500 transition text-2xl font-bold leading-none flex-shrink-0 pb-1 col-span-1 text-center">&times;</button>
+                `;
+                annualExpensesContainer.appendChild(newRow);
+            });
+
+            // 移除一次性支出項目 (事件委派)
+            oneTimeExpensesContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('remove-expense-btn')) {
+                    e.target.closest('.expense-row').remove();
+                }
+            });
+
+            // 移除年度固定支出項目 (事件委派)
+            annualExpensesContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('remove-expense-btn')) {
+                    e.target.closest('.annual-expense-row').remove();
+                }
+            });
+
+            // 更新滑桿數值顯示
+            returnRateEl.addEventListener('input', (e) => {
+                returnRateValueEl.textContent = `${parseFloat(e.target.value).toFixed(1)}%`;
+            });
+            inflationRateEl.addEventListener('input', (e) => {
+                inflationRateValueEl.textContent = `${parseFloat(e.target.value).toFixed(1)}%`;
+            });
+
+            // "開始計算" 按鈕事件
+            calculateBtn.addEventListener('click', () => {
+                // 1. 取得所有輸入值
+                const currentAge = parseInt(currentAgeEl.value);
+                const retirementAge = parseInt(retirementAgeEl.value);
+                const expectedLifespan = parseInt(expectedLifespanEl.value);
+                const currentSavings = parseFloat(currentSavingsEl.value);
+                const monthlyInvestment = parseFloat(monthlyInvestmentEl.value);
+                
+                const totalMonthlyExpense = expenseInputs.reduce((sum, input) => sum + (parseFloat(input.value) || 0), 0);
+                const annualReturn = parseFloat(returnRateEl.value) / 100;
+                const inflationRate = parseFloat(inflationRateEl.value) / 100;
+
+                // 收集一次性支出
+                const oneTimeExpenses = [];
+                document.querySelectorAll('.expense-row').forEach(row => {
+                    const age = parseInt(row.querySelector('.one-time-age').value);
+                    const amount = parseFloat(row.querySelector('.one-time-amount').value);
+                    if (!isNaN(age) && !isNaN(amount) && amount > 0) {
+                        oneTimeExpenses.push({ age, amount });
+                    }
+                });
+
+                // 收集年度固定支出
+                const annualFixedExpenses = [];
+                document.querySelectorAll('.annual-expense-row').forEach(row => {
+                    const item = row.querySelector('.annual-expense-item').value;
+                    const amount = parseFloat(row.querySelector('.annual-expense-amount').value);
+                    const duration = parseInt(row.querySelector('.annual-expense-duration').value);
+                    if (item && !isNaN(amount) && !isNaN(duration) && amount > 0 && duration > 0) {
+                        annualFixedExpenses.push({ item, amount, duration });
+                    }
+                });
+
+                // 簡易驗證
+                if (isNaN(currentAge) || isNaN(retirementAge) || isNaN(expectedLifespan) || isNaN(currentSavings) || isNaN(monthlyInvestment) || isNaN(totalMonthlyExpense) || retirementAge <= currentAge || expectedLifespan <= retirementAge) {
+                    alert('請輸入有效的數字，並確保退休年齡 > 目前年齡，且預計壽命 > 退休年齡。');
+                    return;
+                }
+
+                // 2. 計算邏輯
+                let totalAssets = currentSavings;
+                const annualInvestment = monthlyInvestment * 12;
+
+                const chartData = { labels: [], values: [] };
+                let assetsAtRetirement = 0;
+
+                for (let i = 0; i <= (expectedLifespan - currentAge); i++) {
+                    const age = currentAge + i;
+                    chartData.labels.push(age);
+                    let currentYearAssets = totalAssets;
+
+                    // 除了第一年(i=0)是初始本金，其餘年份都需計算
+                    if (i > 0) {
+                        if (age <= retirementAge) {
+                            // 退休前：資產累積階段
+                            currentYearAssets = (currentYearAssets + annualInvestment) * (1 + annualReturn);
+                        } else {
+                            // 退休後：資產提領階段
+                            const yearsSinceRetirement = age - retirementAge;
+                            
+                            // 計算當年度的固定年度總支出
+                            let totalAnnualFixedExpense = 0;
+                            annualFixedExpenses.forEach(expense => {
+                                if (yearsSinceRetirement <= expense.duration) {
+                                    totalAnnualFixedExpense += expense.amount;
+                                }
+                            });
+
+                            // 注意：通膨是從 "現在" 開始計算的，所以次方是 i
+                            const annualExpense = (totalMonthlyExpense * 12) * Math.pow(1 + inflationRate, i);
+                            currentYearAssets = (currentYearAssets - annualExpense - totalAnnualFixedExpense) * (1 + annualReturn);
+                        }
+
+                        // 無論哪個階段，都需扣除當年的一次性支出
+                        const expenseForTheYear = oneTimeExpenses.find(expense => expense.age === age);
+                        if (expenseForTheYear) {
+                            currentYearAssets -= expenseForTheYear.amount;
+                        }
+                    }
+
+                    totalAssets = currentYearAssets;
+
+                    // 記錄退休那一年的資產，用於顯示
+                    if (age === retirementAge) {
+                        assetsAtRetirement = totalAssets;
+                    }
+                    
+                    chartData.values.push(totalAssets);
+                }
+                
+                // 新的缺口計算方式：直接使用預計壽命結束時的最終資產
+                const finalAssetsAtLifespan = totalAssets;
+
+                // 3. 更新 UI 顯示結果
+                totalAssetsEl.textContent = formatter.format(assetsAtRetirement);
+                
+                if (finalAssetsAtLifespan >= 0) {
+                    gapContainerEl.className = 'bg-emerald-50 border border-emerald-200 p-4 rounded-xl shadow-sm';
+                    gapContainerEl.children[0].textContent = '預計壽命結束時資產盈餘';
+                    gapContainerEl.children[0].className = 'text-sm text-emerald-700 font-medium';
+                    gapContainerEl.children[1].className = 'text-2xl md:text-3xl font-bold text-emerald-800 mt-1';
+                    savingsGapEl.textContent = formatter.format(finalAssetsAtLifespan);
+                } else {
+                    gapContainerEl.className = 'bg-red-50 border border-red-200 p-4 rounded-xl shadow-sm';
+                    gapContainerEl.children[0].textContent = '資金缺口 (資產耗盡時)';
+                    gapContainerEl.children[0].className = 'text-sm font-bold text-red-600';
+                    gapContainerEl.children[1].className = 'text-2xl md:text-3xl font-bold text-red-600 mt-1';
+                    savingsGapEl.textContent = formatter.format(Math.abs(finalAssetsAtLifespan));
+                }
+                
+                // 產生總結建議文字
+                generateSummary(finalAssetsAtLifespan, assetsAtRetirement, monthlyInvestment, chartData);
+
+                // 繪製圖表 (將資產小於0的部分顯示為0，避免圖表穿底)
+                const displayChartData = {
+                    labels: chartData.labels,
+                    values: chartData.values.map(v => Math.max(0, v))
+                };
+                renderChart(displayChartData);
+
+                // 顯示結果區塊
+                resultsEl.classList.remove('hidden');
+                resultsEl.scrollIntoView({ behavior: 'smooth' });
+            });
+
+            // 產生總結建議的函數
+            function generateSummary(gap, assetsAtRetirement, investment, chartData) {
+                let summary = '';
+                const retirementAgeVal = parseInt(retirementAgeEl.value);
+                const lifespanVal = parseInt(expectedLifespanEl.value);
+
+                if (gap >= 0) {
+                    summary = `恭喜您！根據您的規劃，在 ${retirementAgeVal} 歲退休時您預計將擁有 ${formatter.format(assetsAtRetirement)}。這筆資金在支付您所有的年度開銷及一次性支出後，預計到 ${lifespanVal} 歲時，仍會留下 ${formatter.format(gap)} 的資產盈餘。您的計畫非常穩健！`;
+                } else {
+                    let burnoutAge = lifespanVal;
+                    for (let i = 0; i < chartData.values.length; i++) {
+                        if (chartData.values[i] < 0) {
+                            burnoutAge = chartData.labels[i];
+                            break;
+                        }
+                    }
+                    summary = `提醒您，根據您的規劃，在 ${retirementAgeVal} 歲退休時您預計將擁有 ${formatter.format(assetsAtRetirement)}。然而，您的資產預計會在 ${burnoutAge} 歲左右時耗盡，產生 ${formatter.format(Math.abs(gap))} 的資金缺口，無法支撐到 ${lifespanVal} 歲。建議您考慮以下方式來彌補缺口：\n
+                    1.  **提高每月投入金額**：嘗試將每月投入金額從 ${formatter.format(investment)} 提升。\n
+                    2.  **延後退休年齡**：讓資產有更多時間透過複利成長。\n
+                    3.  **尋求更高的投資報酬率**：調整您的投資組合配置，但請注意高報酬通常伴隨著高風險。\n
+                    4.  **重新評估退休後花費**：檢視退休後的生活開銷是否能再精簡。`;
+                }
+                summaryTextEl.innerText = summary;
+            }
+
+            // 繪製圖表的函數
+            function renderChart(data) {
+                if (assetChart) {
+                    assetChart.destroy(); 
+                }
+                const ctx = chartCanvas.getContext('2d');
+                assetChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: '資產累積 (元)',
+                            data: data.values,
+                            backgroundColor: 'rgba(161, 98, 7, 0.2)', // amber-700
+                            borderColor: 'rgba(161, 98, 7, 1)', // amber-700
+                            borderWidth: 2,
+                            pointBackgroundColor: 'rgba(161, 98, 7, 1)', // amber-700
+                            tension: 0.2,
+                            fill: true,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value, index, values) {
+                                        if (value >= 1000000) return (value / 1000000) + ' M';
+                                        if (value >= 1000) return (value / 1000) + ' K';
+                                        return value;
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', minimumFractionDigits: 0 }).format(context.parsed.y);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+
