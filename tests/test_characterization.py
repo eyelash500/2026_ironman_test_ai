@@ -63,8 +63,15 @@ def test_behavior_is_pinned(case):
     assert r.projected_savings == pytest.approx(exp["projected_savings"], rel=REL_TOL)
     assert r.target_fund == pytest.approx(exp["target_fund"], rel=REL_TOL)
     assert r.retirement_gap == pytest.approx(exp["retirement_gap"], rel=REL_TOL)
-    assert r.balances_raw[-1] == pytest.approx(exp["final_balance_raw"], rel=REL_TOL)
-    assert r.balances_charted[-1] == pytest.approx(exp["final_balance_charted"], rel=REL_TOL)
+    # 缺陷 B 的情境（壽命 <= 退休年齡）提領迴圈一次都不執行，逐年餘額是空序列。
+    # golden set 對這種組別記 null——不是 0.0。拿 0 去填一個不存在的值，
+    # 正是缺陷 A' 在做的事，不能在測試裡重演一次。
+    if exp["final_balance_raw"] is None:
+        assert r.balances_raw == ()
+        assert r.balances_charted == ()
+    else:
+        assert r.balances_raw[-1] == pytest.approx(exp["final_balance_raw"], rel=REL_TOL)
+        assert r.balances_charted[-1] == pytest.approx(exp["final_balance_charted"], rel=REL_TOL)
 
 
 # --- 以下四條鎖的是缺陷本身。它們現在「通過」，代表缺陷還在。 ---

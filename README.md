@@ -21,14 +21,28 @@
 | Day 2 | [三招驗證法，為什麼一招都沒中？](https://ithelp.ithome.com.tw/articles/10407106) | — | |
 | Day 3 | [四個缺陷的驗屍報告](https://ithelp.ithome.com.tw/articles/10407126) | — | |
 | Day 4 | [那個 (1+r) 是怎麼來的](https://ithelp.ithome.com.tw/articles/10407397) | — | |
-| Day 5 | [打造影子模型：抽取，還是重寫？](https://ithelp.ithome.com.tw/articles/10407729) | — | 寫了 `oracle/`、`shadow/`，但當天還沒有 commit |
+| Day 5 | [打造影子模型：抽取，還是重寫？](https://ithelp.ithome.com.tw/articles/10407729) | 見下方說明 | 寫了 `oracle/`、`shadow/`，但當天還沒有 commit |
 | Day 6 | [500 組差分，第一次就掛了](https://ithelp.ithome.com.tw/articles/10407970) | [`day06`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day06) | repo 公開。`sut/`、`oracle/`、`shadow/`、`tests/test_differential.py` |
 | Day 7 | 把錯的行為，正式寫進測試裡 | [`day07`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day07) | `golden/` 加 `locks_defect` 標記；修好 `test_characterization.py` 的 `KeyError` |
 
 Day 1–5 沒有 tag，因為 repo 是 Day 6 才建立的——補打只會指到當天並不存在的狀態。
 **寧可留白，不要假的時間戳。**
 
-`day06` 裡已經有 `golden/` 和 `test_characterization.py`，那是 Day 7 的東西：
+### 讀 Day 5 的人要看哪裡
+
+Day 5 講的 `oracle/calc.js` 與 Python 影子模型，最接近的快照是
+[`day06`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day06)，但有一個落差要先知道：
+
+**`shadow/calc.py` 在那個快照裡已經是 Day 6 修好的版本。** Day 5 當下那一版的
+`Params` 只有一個籠統的 `annual_income_after_retirement` 欄位，隔天被 500 組差分
+當場打穿，才拆成勞保、勞退、其他收入三個來源。那一版從來沒有進過 git，
+它唯一的紀錄是 Day 5、Day 6 兩篇文章裡的程式碼區塊。
+
+`oracle/calc.js` 則從第一個 commit 起就沒有變過，Day 5 讀它是準的。
+
+### 為什麼 `day06` 裡就有 Day 7 的東西
+
+`golden/` 和 `test_characterization.py` 在 `day06` 就存在了，那是 Day 7 的交付物。
 程式跑在文章前面一步。照實記著，不回頭修飾。
 
 ## 受測物

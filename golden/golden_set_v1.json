@@ -2,7 +2,7 @@
   "version": "v1",
   "generated": "2026-09-04",
   "source": "shadow/calc.py",
-  "note": "這是 characterization set，記錄的是受測物「現在」的行為，包含已知缺陷。不是正確答案。有 locks_defect 欄位的組別，其 expected 值本身就是缺陷的產物——它們通過，代表缺陷還在。",
+  "note": "這是 characterization set，記錄的是受測物「現在」的行為，包含已知缺陷。不是正確答案。有 locks_defect 欄位的組別，其 expected 值本身就是缺陷的產物——它們通過，代表缺陷還在。 final_balance_* 為 null 代表「沒有提領年度」，與「餘額為 0」是兩回事。",
   "count": 23,
   "cases": [
     {
@@ -420,7 +420,7 @@
       "id": "def_b_inverted",
       "desc": "缺陷B：壽命60<退休65",
       "group": "缺陷現況",
-      "locks_defect": "B：壽命 <= 退休年齡，提領迴圈不執行，目標金額為 0",
+      "locks_defect": "B：壽命 <= 退休年齡，提領迴圈一次都不執行 → 目標金額為 0、逐年餘額為空序列（記 null，不是 0）",
       "input": {
         "current_age": 42,
         "retirement_age": 65,
@@ -433,15 +433,15 @@
         "projected_savings": 19991455.94468314,
         "target_fund": 0.0,
         "retirement_gap": -19991455.94468314,
-        "final_balance_raw": 0.0,
-        "final_balance_charted": 0.0
+        "final_balance_raw": null,
+        "final_balance_charted": null
       }
     },
     {
       "id": "def_b_equal",
       "desc": "缺陷B：壽命=退休年齡",
       "group": "缺陷現況",
-      "locks_defect": "B：壽命 <= 退休年齡，提領迴圈不執行，目標金額為 0",
+      "locks_defect": "B：壽命 <= 退休年齡，提領迴圈一次都不執行 → 目標金額為 0、逐年餘額為空序列（記 null，不是 0）",
       "input": {
         "current_age": 42,
         "retirement_age": 65,
@@ -454,8 +454,8 @@
         "projected_savings": 19991455.94468314,
         "target_fund": 0.0,
         "retirement_gap": -19991455.94468314,
-        "final_balance_raw": 0.0,
-        "final_balance_charted": 0.0
+        "final_balance_raw": null,
+        "final_balance_charted": null
       }
     },
     {
