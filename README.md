@@ -23,7 +23,11 @@
 | Day 4 | [那個 (1+r) 是怎麼來的](https://ithelp.ithome.com.tw/articles/10407397) | — | |
 | Day 5 | [打造影子模型：抽取，還是重寫？](https://ithelp.ithome.com.tw/articles/10407729) | 見下方說明 | 寫了 `oracle/`、`shadow/`，但當天還沒有 commit |
 | Day 6 | [500 組差分，第一次就掛了](https://ithelp.ithome.com.tw/articles/10407970) | [`day06`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day06) | repo 公開。`sut/`、`oracle/`、`shadow/`、`tests/test_differential.py` |
-| Day 7 | 把錯的行為，正式寫進測試裡 | [`day07`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day07) | `golden/` 加 `locks_defect` 標記；修好 `test_characterization.py` 的 `KeyError` |
+| Day 7 | [把錯的行為，正式寫進測試裡](https://ithelp.ithome.com.tw/articles/10408224) | [`day07`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day07) | `golden/` 加 `locks_defect` 標記；修好 `test_characterization.py` 的 `KeyError` |
+| Day 8 | [規格考古：十個沒有人做過決定的地方](https://ithelp.ithome.com.tw/articles/10408401) | [`day08`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day08) | `spec/README.md` 與 `spec/RC-01`～`RC-10`，十個歧義現場（裁決欄留空） |
+| Day 9 | [閘門一：替一年前的自己做決定](https://ithelp.ithome.com.tw/articles/10408713) | [`day09`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day09) | 十個 `RC-xx.md` 的裁決欄填滿；新增 `spec/PRD-v1.md`（十條條款 + RC→PRD 對照） |
+| Day 10 | [把 PRD 餵給 AI 之前，先把及格線畫好](https://ithelp.ithome.com.tw/articles/10408985) | [`day10`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day10) | `generated/2026-09-09-day10-prd-to-cases/`：`manifest.yaml`、`prompt.md`、`input-prd.md`；首輪十份作廢的原始輸出與 `CONTAMINATED.md` |
+| Day 11 | RTM 沒抓到漏測，抓到的是我的規格書 | [`day11`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day11) | 重跑的十份乾淨輸出（`run-a-1`～`5`、`run-B-01`～`05`）；`manifest.yaml` 補記執行環境 |
 
 Day 1–5 沒有 tag，因為 repo 是 Day 6 才建立的——補打只會指到當天並不存在的狀態。
 **寧可留白，不要假的時間戳。**

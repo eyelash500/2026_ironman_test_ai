@@ -17,16 +17,34 @@ models:
   # 理由：若結果不佳，「你用便宜版吧」「換旗艦就好」是最容易的反駁，
   # 而那兩句一旦成立，整個實驗就白做了。用高階版把它先擋掉。
   # 同廠商的 Pro vs Flash 是另一個問題（推理預算 vs 測試品質），留給 Day 22。
+  # 每一組必須記下「在哪一層執行」。首輪 A 的 name 留在 __待填__ 就 commit 了，
+  # 事後無法判定它跑在 AI Studio 還是 Gemini app——兩者的注入面完全不同。
+  # 執行環境沒有憑據的原始輸出不能用，與結果好壞無關。
+  #
+  # 兩組都在「開發層網頁介面」手動輸入，非程式呼叫 API。這一點是可比性的前提：
+  # 開發層沒有 memory／skill／個人化這一層，而消費端 app 有。
+  # 首輪 B 跑在 claude.ai chat（消費端），本輪跑在 Workbench（開發層）——
+  # 污染源與執行層同時改變，故本輪與首輪的產出量差異不可單獨歸因於「移除污染」。
   - id: A
-    name: __待填__             # 填介面上顯示的完整版本字串
-    interface: chat
+    name: Gemini 3.1 Pro
+    interface: AI Studio 網頁（開發層，手動輸入）
+    plan: 付費
+    features_enabled: none          # 作業時未開啟任何功能
+    system_instruction: 未填寫       # 介面預設空白
+    temperature: __未記錄__          # 當次未截圖存證，事後不可復原
     tier: 高階
     runs: 5
+    files: run-a-1.md ~ run-a-5.md
   - id: B
-    name: __待填__
-    interface: chat
+    name: Claude Opus 5
+    interface: Console Workbench 網頁（開發層，手動輸入）
+    plan: 付費
+    features_enabled: none          # 開發層無 memory／skill／個人化可開
+    system_prompt: 未填寫            # 介面預設空白
+    temperature: __未記錄__          # 同上
     tier: 高階
     runs: 5
+    files: run-B-01.txt ~ run-B-05.txt
 
 isolation:
   # 受測模型能拿到的東西，只有貼進對話的那兩段文字。
