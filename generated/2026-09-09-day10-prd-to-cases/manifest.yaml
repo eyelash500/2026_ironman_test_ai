@@ -1,0 +1,106 @@
+# 實驗：把 PRD v1.0 餵給 AI，看它產出什麼測試案例
+# 本檔在跑之前寫完。跑完不得回頭修改任何欄位。
+
+experiment: day10-prd-to-cases
+date_planned: 2026-09-09
+purpose: |
+  量測「AI 依規格產測試案例」的實際結構：
+  產了什麼（覆蓋到的）、漏了什麼（PRD 有但無 case）、編了什麼（PRD 沒有卻寫進斷言）。
+
+input:
+  prompt: prompt.md            # 逐字，不得因結果不佳而修改
+  spec: input-prd.md           # 自 spec/PRD-v1.md 裁切，僅條款表；其餘章節含缺陷名稱，不得提供
+  spec_source_commit: 579f39a  # input-prd.md 裁切自這個版本的 spec/PRD-v1.md
+
+models:
+  # 刻意兩家不同廠商，且都用各家的高階版本。
+  # 理由：若結果不佳，「你用便宜版吧」「換旗艦就好」是最容易的反駁，
+  # 而那兩句一旦成立，整個實驗就白做了。用高階版把它先擋掉。
+  # 同廠商的 Pro vs Flash 是另一個問題（推理預算 vs 測試品質），留給 Day 22。
+  - id: A
+    name: __待填__             # 填介面上顯示的完整版本字串
+    interface: chat
+    tier: 高階
+    runs: 5
+  - id: B
+    name: __待填__
+    interface: chat
+    tier: 高階
+    runs: 5
+
+isolation:
+  # 受測模型能拿到的東西，只有貼進對話的那兩段文字。
+  #
+  # 首版這一節只寫了 file_access 與 web_access，跑完才發現漏掉一整類：
+  # 「預先注入的指令」。skill、memory、自訂指令都不是檔案存取，
+  # 但它們注入的正是提示詞刻意不給的東西。首輪 B 因此作廢，見 CONTAMINATED.md。
+  #
+  # 以下五項全部要確認，缺一項該 run 即標為「隔離不完全」。
+
+  file_access: none
+    # 不掛任何檔案、不給 repo。repo 裡有 sut/ 原始碼、spec/RC-xx.md 的裁決、
+    # golden_set_v1.json 的 locks_defect 欄位、test_characterization.py 的函式名。
+
+  skills: none
+    # 作者自己裝了 qa-test-docs，其 description 明寫「即使使用者只提到
+    # 『幫我寫 test case』也應觸發」。它會注入團隊範本：優先級、自動化分級、
+    # Case ID 前綴規則——那些是測試設計的一部分，提示詞刻意沒給。
+
+  memory: off
+    # 對話框「+」選單預設勾選。它會讓模型讀得到先前對話，
+    # 而作者與同一模型討論過本系列的四個缺陷。
+    # memory 開著時，「它推得出來」與「它記得」無法區分。
+
+  projects_or_custom_instructions: none
+    # Claude 的 Project、Gemini 的 Gem／已儲存資訊／個人化，一律不掛。
+
+  web_access: 能關就關
+    # 風險來源：Day 3〈四個缺陷的驗屍報告〉已公開，內含四個缺陷的
+    # 完整機制與行號；repo 本身也是 public。若模型主動搜尋，查得到。
+    # 但提示詞不含引導搜尋的內容，實際觸發機率低。
+    # 關不掉不必中止，在 run 檔開頭記一行即可。
+
+  preflight_check: |
+    設定關掉不等於真的關掉。正式跑之前，另開一個「丟棄用」對話，
+    設定與正式跑完全相同，先問：
+
+      在回答之前，先告訴我：你現在這個對話有沒有載入任何 skill、
+      記憶、專案或自訂指令？如果有，請逐項列出名稱。
+
+    確認回報為「沒有」之後，該對話丟棄，再另開新對話跑正式的五次。
+    模型的回報存成 preflight-<模型代號>.txt，作為「隔離已驗證」的憑據。
+
+    這一步存在的理由：首輪十份全部作廢，不是因為忘了關設定，
+    是因為根本沒想到那些設定會注入東西。開關的狀態要驗，不能只憑記得。
+
+  followup_questions: |
+    模型若反問工具用途或索取更多背景，一律回「就依規格書設計」，
+    不補任何說明。補背景就是換了一個實驗。
+
+discipline:
+  independence: |
+    每一次生成必須在全新對話中進行，不得延續前一次。
+    受測模型不得事先讀過本系列 Day 1-9 的任何內容
+    ——那些文章已經公布四個缺陷與十個歧義現場，讀過就等於考前看答案。
+  temperature: __待填__
+  min_runs_for_ratio: 5        # 比例類結論的最低次數；未達則只能稱「初步觀察」
+  raw_output: |
+    run-NN.txt 存原始輸出，一個字都不改。
+    要清理格式另存 run-NN.cleaned.md，不覆蓋原檔。
+    失敗、被截斷、看起來很蠢的都留著。
+
+classification:
+  # 分類規則在看到結果之前定好，避免事後按結果調整定義
+  Valid: PRD 有對應條款，且斷言與該條款一致
+  Omission: PRD 有條款但整批 case 無任何一條覆蓋（裸需求）
+  Hallucination: case 的斷言引入 PRD 未載明的規則或常數（孤兒 case）
+  Duplicate: 與其他 case 走同一條計算分支，僅輸入數值不同
+
+acceptance:
+  # 這不是「AI 要考幾分」，是「這批 case 能不能直接用」的門檻
+  usable_without_human_edit: false   # 預設立場：不能。要推翻它得有證據
+  human_audit_ratio: 0.30            # 每 run 至少人工覆核 30%
+  full_audit: [Omission, Hallucination]  # 這兩類 100% 覆核
+
+notes: |
+  受測模型是生成端。驗收端是人與 executor，本系列正篇沒有任何一天由模型當驗收者。
