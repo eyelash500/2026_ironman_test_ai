@@ -1,5 +1,21 @@
 # 實驗：把 PRD v1.0 餵給 AI，看它產出什麼測試案例
-# 本檔在跑之前寫完。跑完不得回頭修改任何欄位。
+#
+# 本檔分兩類欄位，紀律不同：
+#
+#   【跑前定案，跑完不得修改】
+#     input / isolation / discipline / classification / acceptance
+#     門檻與規則必須在看到任何一份輸出之前寫完。想看跑之前的原始狀態，
+#     `git show day10:generated/2026-09-09-day10-prd-to-cases/manifest.yaml`
+#     就是那一版（三個 __待填__ 還在裡面）。tag 就是凍結，不另存副本。
+#
+#   【跑後補記，但必須補】
+#     models[] 的 name / interface / plan / features_enabled /
+#     system_prompt / temperature / files
+#     執行環境只能事後記。首輪十份正是因為沒記而作廢（見 CONTAMINATED.md），
+#     所以這一類欄位不是「可以改」，是「不補就不算做完」。
+#
+# 原本這兩類混在一句「跑完不得回頭修改任何欄位」裡，
+# 導致補記執行環境這件該做的事看起來像違規。分開之後兩句都能為真。
 
 experiment: day10-prd-to-cases
 date_planned: 2026-09-09
