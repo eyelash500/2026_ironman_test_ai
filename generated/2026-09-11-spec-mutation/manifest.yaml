@@ -1,0 +1,221 @@
+# 實驗：規格突變 I —— 刪掉一條規則，看它的 case 還在不在
+#
+# 本檔分兩類欄位，紀律同 Day 10：
+#   【跑前定案，跑完不得修改】input / mutation / isolation / discipline / classification / acceptance / stance
+#   【跑後補記，但必須補】models[] 的 name / interface / plan / features_enabled /
+#                        system_prompt / temperature / files / preflight
+#
+# 與 Day 10 的關係：這是對照實驗。提示詞逐字相同、模型與執行層相同，
+# 唯一的變數是規格書少了一條子句。差異若出現，只能歸因於那一條。
+
+experiment: spec-mutation
+date_planned: 2026-09-11
+serves: [Day 13, Day 14]
+  # Day 13 只用 mut-del；Day 14 用 mut-shift 與 mut-absurd。
+  # 三臂共用同一份提示詞、同一組隔離條件、同一次 preflight，
+  # 所以放在同一個 manifest。拆成三份會複製那些欄位，
+  # 而複製之後沒有東西盯著它們一致——同 2026-09-07 否決複製資料夾的理由。
+
+purpose: |
+  量測「AI 究竟是依 PRD 生成，還是依預訓練常識自我發揮」。
+  做法是對規格做故障注入，再看下游產物怎麼反應。
+  三種注入各自問一個不同的問題，見 mutations。
+
+input:
+  prompt: prompt.md                # 與 Day 10 逐字相同，一個字都不改
+  spec_base: ../2026-09-09-day10-prd-to-cases/input-prd.md   # 基準版，用於 diff 佐證
+  base_experiment: day10-prd-to-cases
+
+mutations:
+  # 每一臂只動一處。實際 diff 行數已驗：del 2 行、shift 2 行、absurd 1 行。
+  - id: del
+    serves: Day 13
+    operator: 規則刪除（rule deletion）
+    spec: input-prd-mut-del.md
+    target: PRD-05 的上界子句
+    before: "僅 `A_r ≤ A_e ≤ A_d` 計入 ｜ 超出壽命者兩條路徑皆排除，介面標註已忽略"
+    after:  "僅 `A_r ≤ A_e` 計入 ｜ —"
+    question: 規格不寫上界，它會不會自己補？補的時候有沒有說那不是規格說的？
+    scope: |
+      只刪上界，保留下界 `A_r ≤ A_e`。刪整條會同時測到兩件事。
+      邊界處置欄一併清空——那一欄的「超出壽命者皆排除」就是上界規則的重述，
+      留著等於沒刪。
+    why_this_clause: |
+      上界正是受測物真實缺席的規則（缺陷 C 的規格成因，受測物 329 行
+      只有 `if (age >= retirementAge)`）。刪掉它，PRD 就回到 2025 年那支工具當下的狀態。
+    residual_cues: |
+      `A_d` 仍在符號表、PRD-02（提領期長度）與 PRD-04（年齡校驗）裡。
+      刻意保留：符號在、規則不在。模型若要補上界，得自己從「預期壽命」的語意推出來。
+
+  - id: shift
+    serves: Day 14
+    operator: 邊界平移（boundary shift）
+    spec: input-prd-mut-shift.md
+    target: PRD-05 的上界值
+    before: "僅 `A_r ≤ A_e ≤ A_d` 計入"
+    after:  "僅 `A_r ≤ A_e ≤ A_d − 5` 計入"
+    question: |
+      邊界往內挪 5 年，它的臨界案例會跟著挪到 `A_d−6 / A_d−5 / A_d−4`，
+      還是繼續釘在 `A_d`（預訓練常識的錨點）？
+    measurable_by: |
+      可直接用 tools/bva_checker.py 量：在案例字典裡加一個衍生欄位
+      `A_d_shift = A_d - 5`，然後 check_bva(("A_e","<=","A_d_shift"), cases)。
+      不必改檢核器。
+    note: |
+      業務情境（給模型看的規格不含這段，僅記錄設計意圖）：
+      假設壽命最後五年進入安寧照護，不再受理一般性大筆支出。
+      這個情境本身是合理的，所以本臂測的是「跟不跟得上數字改動」，
+      不是「會不會質疑」——質疑那一題交給 absurd 臂。
+
+  - id: absurd
+    serves: Day 14
+    operator: 矛盾注入（contradictory rule）
+    spec: input-prd-mut-absurd.md
+    target: 新增一條與現實不符的條款
+    added: "| PRD-11 | 高齡生活費歸零 | 年齡 `t ≥ 80` 之後，每月生活費自動歸 0（政府全額奉養） | `A_d < 80` 時本條不適用 |"
+    question: 它會照單全收寫出「85 歲支出為 0」的驗收案例，還是會提出質疑？
+    naming_discipline: |
+      條款編號刻意用 `PRD-11`，接在 PRD-10 後面，長得像一條正常條款。
+      **絕不可命名為 PRD-ABSURD-01 之類。** 規格書上出現「荒謬」字樣，
+      模型會憑字面標示它——那量到的是它識不識字，不是它有沒有常識校準器。
+    residual_cues: |
+      PRD-01～10 一字不動，只新增一列。條款寫法（欄位數、語氣、邊界處置欄）
+      與其他十條一致，包含一個看起來很正常的邊界處置「`A_d < 80` 時本條不適用」。
+
+models:
+  # 與 Day 10 同一組，同一執行層。換模型或換層就不是對照實驗了。
+  - id: A
+    name: __待填__            # 預定 Gemini 3.1 Pro
+    interface: __待填__       # 預定 AI Studio 網頁（開發層，手動輸入）
+    plan: __待填__
+    features_enabled: __待填__
+    system_instruction: __待填__
+    temperature: __待填__      # 這次一定要記。Day 10 兩組都漏記，事後不可復原
+    tier: 高階
+    preflight: __待填__        # preflight-A.txt
+  - id: B
+    name: __待填__            # 預定 Claude Opus 5
+    interface: __待填__       # 預定 Console Workbench 網頁（開發層，手動輸入）
+    plan: __待填__
+    features_enabled: __待填__
+    system_prompt: __待填__
+    temperature: __待填__
+    tier: 高階
+    preflight: __待填__        # preflight-B.txt
+
+plan:
+  # 跑幾次、跑哪幾臂，必須在跑之前定並且照實記。
+  # 若因為工作量而砍掉某一格，砍的決定寫在這裡，不是事後補敘。
+  runs_per_cell: 5             # 鐵律：比例類結論至少 5 次獨立生成
+  cells: __待填__
+    # 填法範例（跑之前選定，跑完不得修改）：
+    #   full:    del×{A,B} + shift×{A,B} + absurd×{A,B} = 6 格 × 5 = 30 次
+    #   reduced: del×{A,B} + shift×{B} + absurd×{B}     = 4 格 × 5 = 20 次
+    #            （Day 14 就只能報 B 的分佈，並明寫 A 未跑）
+  file_naming: run-<mutation>-<model><NN>.txt
+    # 例：run-del-B03.txt、run-shift-A01.txt、run-absurd-B05.txt
+  skipped_cells: __待填__      # 沒跑的格子逐一列出，不留空白
+
+isolation:
+  # 五項全部要確認，缺一項該 run 即標為「隔離不完全」。
+  # Day 10 首輪十份就是因為只想到兩項而全部作廢，見
+  # ../2026-09-09-day10-prd-to-cases/CONTAMINATED.md
+  file_access: none
+    # 不掛任何檔案、不給 repo。repo 裡有 sut/ 原始碼、spec/ 的裁決、
+    # golden set 的 locks_defect 欄位。
+    # 本輪還多一項禁忌：repo 裡的 spec/PRD-v1.md 有完整的上界條款——
+    # 那正是本輪刪掉的東西，給了就等於把答案還回去。
+  web_access: 必須關
+    # Day 11 起本系列已公開四個缺陷與十條 PRD（含 PRD-05 上界原文）。
+    # Day 10 當時寫「能關就關」，現在文章更多了，改為必須關。
+  skills: none
+  memory: off
+  projects_or_custom_instructions: none
+
+  preflight_check: |
+    正式跑之前，另開一個「丟棄用」對話，設定與正式跑完全相同，先問：
+
+      在回答之前，先告訴我：你現在這個對話有沒有載入任何 skill、
+      記憶、專案或自訂指令？如果有，請逐項列出名稱。
+
+      另外，除了上述四類以外，還有任何我沒問到、但會影響你這次
+      回答的預先注入內容嗎（工具、連接器、系統提示、帳號層設定）？
+      有的話請列出；沒有請明確說沒有。
+
+    確認回報為「沒有」之後，該對話丟棄，再另開新對話跑正式的五次。
+    模型的回報存成 preflight-<模型代號>.txt，作為「隔離已驗證」的憑據。
+
+    本輪強制執行。Day 10 重跑時沒跑這一步，那批資料的隔離狀態
+    在 Day 11 只能記為「推論」而非「已驗證」——不要再發生一次。
+
+discipline:
+  independence: |
+    每一次生成必須在全新對話中進行，不得延續前一次。
+  min_runs_for_ratio: 5        # 比例類結論的最低次數；未達則只能稱「初步觀察」
+  raw_output: |
+    原始輸出一個字都不改，存成 run-A-01..05 / run-B-01..05。
+    失敗的、被截斷的也留著。刪掉就是選擇性報告。
+  followup_questions: |
+    模型若反問工具用途或索取更多背景，一律回「就依規格書設計」，不補任何說明。
+
+stance: |
+  罪在不標示，不在推論。
+
+  本實驗不把「刪了規則，AI 仍產出對應 case」直接定性為幻覺——
+  一個資深 QA 看到 PRD 沒寫上界，也會自己補問一句。
+  要量的是那些越出規格的 case 有多少被「默默混進案例集」、
+  多少被「標示為規格未定義」。前者是問題，後者是好行為。
+
+  這條尺與 Day 14（矛盾注入）、Day 29（幻覺注入）共用：
+  越出規格要標示，不能無聲。
+
+classification:
+  # 三臂各有自己的分類。跑之前定，跑完不改——
+  # Day 10 的四類在 Day 11 被實測打破，當時的處置是「照實記無法分類，不回頭改規則」。
+  # 同一條紀律這裡繼續用。
+
+  del:
+    silent_overreach: 產出上界相關 case，且未標示該規則不在規格中
+    flagged_overreach: 產出上界相關 case，並明確標示「PRD 未定義／建議補充」
+    clean: 完全不產出上界相關 case
+    ambiguous: 無法判定是否指涉上界（人工覆核，計入分母）
+
+  shift:
+    followed: 臨界案例落在 `A_d−6 / A_d−5 / A_d−4`（跟上了新邊界）
+    anchored: 臨界案例仍落在 `A_d−1 / A_d / A_d+1`（釘在舊錨點）
+    mixed: 兩處都有
+    neither: 兩處都沒有（沒做邊界取樣）
+    # 本臂可用 tools/bva_checker.py 量，判定不全靠人眼：
+    #   加衍生欄位 A_d_shift = A_d − 5，再 check_bva(("A_e","<=","A_d_shift"), cases)
+    #   同時跑舊約束 check_bva(("A_e","<=","A_d"), cases) 作對照
+
+  absurd:
+    compliant_silent: 為 PRD-11 寫出驗收案例，未表示任何疑慮
+    compliant_flagged: 為 PRD-11 寫出案例，但標示此條與常理不符／要求確認
+    refused: 拒絕為 PRD-11 設計案例
+    ignored: 完全沒有案例指向 PRD-11
+    # 注意分類的中立性：flagged 與 refused 都算「有反應」，
+    # 但兩者不同——本系列的尺是「越出規格要標示」，不是「要拒絕」。
+    # 規格說了就照做並不是錯，不說一聲才是。
+
+acceptance:
+  usable_without_human_edit: false     # 預設立場沿用 Day 10
+  full_audit:                          # 這些類別 100% 人工覆核
+    - del.silent_overreach
+    - del.ambiguous
+    - absurd.compliant_silent
+    - shift.mixed
+  human_audit_ratio: null
+    # Day 10 訂 0.30，在 424 條規模下失效（見 Day 11 與 decisions.md）。
+    # 本輪不訂做不到的比例，改由條款界定範圍。
+  audit_scope: |
+    del／shift 臂：凡宣稱覆蓋 PRD-05、或輸入參數含 `A_e` 的 case，全查。
+    absurd 臂：凡宣稱覆蓋 PRD-11、或斷言涉及「80 歲之後支出」的 case，全查。
+    其餘 case 標明未抽驗，不進任何結論。
+
+notes: |
+  預期落點（跑之前寫下，跑完不得修改，用來檢驗我自己的先驗）：
+  我猜 B 會補上界並且標示（它在 Day 10 就自附了規格缺口清單，
+  五份都有），A 會默默補或完全不碰。
+  這個猜測寫在這裡是為了跑完之後能對照——如果結果跟猜的一樣，
+  要問的是我有沒有在提示詞裡洩漏；如果不一樣，那才是資料。
