@@ -27,7 +27,10 @@
 | Day 8 | [規格考古：十個沒有人做過決定的地方](https://ithelp.ithome.com.tw/articles/10408401) | [`day08`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day08) | `spec/README.md` 與 `spec/RC-01`～`RC-10`，十個歧義現場（裁決欄留空） |
 | Day 9 | [閘門一：替一年前的自己做決定](https://ithelp.ithome.com.tw/articles/10408713) | [`day09`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day09) | 十個 `RC-xx.md` 的裁決欄填滿；新增 `spec/PRD-v1.md`（十條條款 + RC→PRD 對照） |
 | Day 10 | [把 PRD 餵給 AI 之前，先把及格線畫好](https://ithelp.ithome.com.tw/articles/10408985) | [`day10`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day10) | `generated/2026-09-09-day10-prd-to-cases/`：`manifest.yaml`、`prompt.md`、`input-prd.md`；首輪十份作廢的原始輸出與 `CONTAMINATED.md` |
-| Day 11 | RTM 沒抓到漏測，抓到的是我的規格書 | [`day11`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day11) | 重跑的十份乾淨輸出（`run-a-1`～`5`、`run-B-01`～`05`）；`manifest.yaml` 補記執行環境 |
+| Day 11 | [RTM 沒抓到漏測，抓到的是我的規格書](https://ithelp.ithome.com.tw/articles/10409267) | [`day11`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day11) | 重跑的十份乾淨輸出（`run-a-1`～`5`、`run-B-01`～`05`）；`manifest.yaml` 補記執行環境 |
+| Day 12 | [把「該有 `A_d−1`／`A_d`／`A_d+1`」寫成 40 行程式](https://ithelp.ithome.com.tw/articles/10409576) | [`day12`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day12) | `tools/bva_checker.py`（38 行邏輯 + 7 組 KAT）；`tools/case_extractor.py` 含凍結宣告；`tests/test_bva.py` 移除重複實作改為 import |
+| Day 13 | [我刪掉一條規格，沒有人偷偷把它加回來](https://ithelp.ithome.com.tw/articles/10409818) | [`day13`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day13) | `generated/2026-09-11-spec-mutation/`：三臂突變 PRD、`del` 臂十份輸出、preflight 與 `manifest.yaml` |
+| Day 14 | [十三條測試全綠，殺得掉的只有「乘以 −1」](https://ithelp.ithome.com.tw/articles/10410618) | [`day14`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day14) | `spec/PRD-v1.1.md`（三缺口裁決 + PRD-11）；`tools/test_mutator.py`（21 個變異體，M/N 分群）；`tools/prd_cost.py`（KAT 釘住 v1.0 已發表的六個數字） |
 
 Day 1–5 沒有 tag，因為 repo 是 Day 6 才建立的——補打只會指到當天並不存在的狀態。
 **寧可留白，不要假的時間戳。**
