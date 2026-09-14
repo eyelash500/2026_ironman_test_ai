@@ -85,36 +85,167 @@ mutations:
 models:
   # 與 Day 10 同一組，同一執行層。換模型或換層就不是對照實驗了。
   - id: A
-    name: __待填__            # 預定 Gemini 3.1 Pro
-    interface: __待填__       # 預定 AI Studio 網頁（開發層，手動輸入）
-    plan: __待填__
-    features_enabled: __待填__
-    system_instruction: __待填__
-    temperature: __待填__      # 這次一定要記。Day 10 兩組都漏記，事後不可復原
+    name: Gemini 3.1 Pro Preview
+    model_id: gemini-3.1-pro-preview
+      # ⚠️ 是 Preview 版本。預覽模型可能在無預告的情況下更動，
+      #    同一個字串在不同時間未必是同一個模型——重現性有先天上限。
+      #    Day 10 的 manifest 只記「Gemini 3.1 Pro」，未記 preview 字樣，
+      #    兩輪是否為同一個權重無法事後確認。
+    interface: AI Studio 網頁（開發層，手動輸入）
+    plan: 付費
+    features_enabled: 全部關閉
+      # 2026-09-12 截圖逐項確認：Structured outputs / Code execution /
+      # Function calling / Grounding with Google Search / Grounding with Google Maps /
+      # URL context —— 六個開關全部為 off。
+      # 其中 Grounding 關閉一項最關鍵：Day 11 起本系列已公開 PRD-05 上界原文。
+    system_instruction: 空白（System instructions 欄未填）
+    temperature: 1
+    thinking: High              # AI Studio 的 Thinking level 下拉選單
+    output_length: 65536        # 上限。若輸出被截斷，先看是不是撞到這個數字
+    media_resolution: Default
+    safety_settings: 預設（未調整）
     tier: 高階
-    preflight: __待填__        # preflight-A.txt
+    preflight: preflight-A.txt
+      # 2026-09-12 已跑。四類（skill／記憶／專案／自訂指令）皆回報無。
+      # 但它主動多報了一項：底層有 Search 與 Python Execution 工具可用。
+      # 該項不採信模型自述，改以 AI Studio 介面的 Grounding 開關為準，
+      # 開關狀態填在 features_enabled。
   - id: B
-    name: __待填__            # 預定 Claude Opus 5
-    interface: __待填__       # 預定 Console Workbench 網頁（開發層，手動輸入）
-    plan: __待填__
-    features_enabled: __待填__
-    system_prompt: __待填__
-    temperature: __待填__
+    name: Claude Opus 5
+    model_id: claude-opus-5
+    interface: Console Playground 網頁（開發層，手動輸入）
+    plan: 付費
+    features_enabled: 全部未掛
+      # 2026-09-12 截圖確認：Add 選單中的 Structured output / Custom tool /
+      # Web search / Web fetch / Code execution / Advisor / Computer use /
+      # Browser use / Bash —— 一項都沒加。System prompt 區塊存在但內容空白。
+    system_prompt: 空白（Playground 的 System 欄未填）
+    fallback_model: 未設定
+    temperature: 1
+    speed: Standard
+    effort: High                # Output config → Effort
+    stop_sequences: 無
+    streaming: 開啟
+    max_tokens: 20000
+      # ⚠️ 這是輸出上限，且 thinking 的 token 也算在這個額度裡。
+      #    Day 10 的 B 組輸出已達 8,916–12,711 字元，加上 adaptive thinking
+      #    的消耗，20,000 有可能不夠——若某一 run 在表格中途斷掉，
+      #    第一個要懷疑的就是撞到這個上限，不是模型「寫到一半放棄」。
+      #    依 discipline.raw_output，被截斷的也照樣存檔編號，
+      #    但要在 execution_status 註明哪幾份被截斷。
+      #    （對照：模型 A 的 output_length 是 65,536，兩邊天花板差很多。
+      #     這不影響各自臂內的分佈，但跨模型比較「產出量」時要記得。）
+    extended_thinking: Adaptive
+      # 2026-09-12 截圖確認。選項為 Disabled / Adaptive，本輪用 Adaptive（介面標為 Default）。
+      # 「開啟」還不夠精確——Adaptive 是模型自行決定思考長度，
+      # 不是固定 budget，所以每一 run 的思考量可能不同。
     tier: 高階
-    preflight: __待填__        # preflight-B.txt
+    preflight: preflight-B.txt
+      # 2026-09-12 已跑。四類皆無，另明確回報無工具、無連接器、無系統提示。
+      # 回報中附了一段但書：模型對自身內省有限度，無法排除不可見的後處理。
+      # 該但書照實保留——它不影響本輪判定，但它是對的。
+
+comparability_with_base:
+  # 本輪與 Day 10 基準資料的可比性，按證據等級分三層記錄。
+  # 分層的理由：作者記得的事、介面顯示的事、檔案裡有的事，份量不同。
+
+  verified_by_file:
+    # 有檔案佐證，可覆核
+    - 提示詞本體與 Day 10 逐字相同（已用程式比對，213 字元完全一致）
+    - 規格書只動一處（diff 實測：del 2 行、shift 2 行、absurd 1 行）
+    - 執行層同為開發層網頁手動輸入
+
+  verified_by_ui_this_round:
+    # 這一輪的介面截圖可證，但只能證明「這一輪」
+    - 模型 A：gemini-3.1-pro-preview、temperature 1、Thinking High、六個工具全關
+    - 模型 B：claude-opus-5、System 空白、未掛任何工具、extended thinking 開啟
+    - preflight 兩份皆回報無 skill／記憶／專案／自訂指令
+
+  author_recollection_only:
+    # ⚠️ 作者口述，無檔案佐證。份量弱於上面兩層，不得寫成「已確認」。
+    - claim: Day 10 那一輪的設定與本輪相同
+      evidence: 無。Day 10 的 manifest 中 temperature 為 __未記錄__、
+        thinking 欄位當時不存在；該目錄所有檔案（含五份 -對話.txt）
+        皆無 thinking 或 temperature 痕跡，已查證不可復原。
+      implication: |
+        這條口述讓「兩輪可比」更可信，但不構成證據。
+        Day 13 寫與 Day 10 的對照時，措辭上限是
+        「作者回報設定未變動，但該輪未留下紀錄」——
+        不可寫成「兩輪設定相同」。
+    - claim: Day 10 用的是同一個 Gemini 權重
+      evidence: 無。Day 10 只記「Gemini 3.1 Pro」，未記 preview 字樣。
+        gemini-3.1-pro-preview 為預覽版本，可能無預告更動。
 
 plan:
-  # 跑幾次、跑哪幾臂，必須在跑之前定並且照實記。
-  # 若因為工作量而砍掉某一格，砍的決定寫在這裡，不是事後補敘。
+  # ── 跑之前定案，跑完不得修改 ──
   runs_per_cell: 5             # 鐵律：比例類結論至少 5 次獨立生成
-  cells: __待填__
-    # 填法範例（跑之前選定，跑完不得修改）：
-    #   full:    del×{A,B} + shift×{A,B} + absurd×{A,B} = 6 格 × 5 = 30 次
-    #   reduced: del×{A,B} + shift×{B} + absurd×{B}     = 4 格 × 5 = 20 次
-    #            （Day 14 就只能報 B 的分佈，並明寫 A 未跑）
+  cells: full
+    # full = del×{A,B} + shift×{A,B} + absurd×{A,B} = 6 格 × 5 = 30 次
+    # （另一個曾考慮的方案 reduced = 4 格 × 5 = 20 次，shift／absurd 只跑 B；未採用）
+  skipped_cells: 無            # 計畫階段不預先砍任何一格
+  execution_layer: 網頁手動輸入
+    # 與 Day 10 同層：模型 A 走 AI Studio 網頁、模型 B 走 Console Workbench 網頁。
+    # 曾考慮改用 API script（可精確記錄 temperature、且整批可重現），
+    # 但那會讓本輪與 Day 10 的基準資料不同層，任何差異就無法歸因於突變。
+    # 同層優先，不換。
   file_naming: run-<mutation>-<model><NN>.txt
     # 例：run-del-B03.txt、run-shift-A01.txt、run-absurd-B05.txt
-  skipped_cells: __待填__      # 沒跑的格子逐一列出，不留空白
+
+  # ── 跑完補記，但必須補 ──
+  execution_status: |
+    2026-09-12 執行 del 臂，A×5 與 B×5 完成；shift 與 absurd 兩臂未跑。
+
+    ── 模型 A（Gemini）──
+    五份皆完成。run-del-A01 那一次，AI Studio 連續三次回報
+    「Failed to generate content: permission denied」／「An internal error has occurred」，
+    第四次才成功。三次失敗未產生任何輸出，故無對應檔案，原因未進一步查證。
+
+    ── 模型 B（Claude）逐份結束狀態 ──
+    | 檔案 | stop_reason | 證據來源 | 判定 |
+    | B01 | 無法取得 | 結構推論 | 完成 |
+    | B02 | end_turn  | API 回報 | 完成 |
+    | B03 | 無法取得 | 結構推論 | 完成 |
+    | B04 | end_turn  | API 回報 | 完成 |
+    | B05 | max_tokens | API 回報 | **截斷** |
+
+    B05 的 usage：input 964 / output 20,000（其中 thinking 10,578）。
+    thinking 吃掉額度的 53%，只剩 9,422 token 給實際內容。
+
+    B01 與 B03 的 stop_reason 在 Playground History 中點不出來（顯示
+    「Press Run / The full API response will appear here」），改用結構判準。
+
+    ⚠️ 判準本身修正過一次，兩個版本都記下來：
+      v1（錯誤，已棄用）：「結尾 25 行是否涵蓋 PRD-01～PRD-10」。
+        此判準被 API 資料推翻——B04 經確認為 end_turn（完成），
+        其結尾 25 行只涵蓋 PRD-1/2/3/4/8/9/10，並未十條全到；
+        而截斷的 B05 是 PRD-1/2/3/8/9/10，兩者形狀相近。該判準分不出完成與截斷。
+        （此錯誤另有成因：當時的臨時分析腳本未還原檔案中的字面 \n，
+         B01~B04 被當成單行處理，「結尾 25 行」實際上是整份文件，
+         所以十條當然全到。工具本身的 _load 正確，是分析腳本的問題。）
+      v2（現行）：「最後一行在語法上是否完整」——
+        完整句子（以句號收尾），或完整表格列（欄數齊全且以 | 收尾）。
+
+    v2 有兩個 API 對照點：
+      B04 完成，最後一行「⋯送 G-10 確認 |」為完整表格列 → 判準給「完成」，相符。
+      B05 截斷，最後一行「| G-5 | PRD-03」四欄只寫兩欄且無收尾 | → 判準給「截斷」，相符。
+    據此套用於 B01（完整句子收尾）、B03（| PRD-10 | … | BLK-07 | 四欄齊全）。
+    ⚠️ 仍是推論，證據等級低於 API 回報。
+
+    ── 截斷份的處置 ──
+    run-del-B05 不刪除、不重跑、保留原編號。
+    但其案例數不計入分佈統計（截斷會使計數偏低），於文章中單獨標記。
+
+    ── 佔位檔事故 ──
+    B03/B04/B05 曾一度是 run-del-A01 的複本（作為跑之前的佔位檔），
+    三份 md5 相同且與 A01 相同。實際輸出寫入後已覆蓋，
+    分析前以全檔 md5 兩兩比對確認十份內容互異。
+    記此一筆的理由：佔位檔與真資料外觀相同、不會報錯，
+    若某次漏覆蓋將無聲進入分析。往後佔位檔應改用會失敗的形式。
+
+    ── 未跑的部分 ──
+    shift×{A,B}、absurd×{A,B} 共 20 次未執行。
+    原因：Claude API credit 餘額不足（開跑前 US$2.80，del 臂 B 組五次已耗用大部分）。
+    非設計上的取捨，屬執行面限制，據實記錄。
 
 isolation:
   # 五項全部要確認，缺一項該 run 即標為「隔離不完全」。
