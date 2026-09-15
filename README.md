@@ -31,7 +31,7 @@
 | Day 12 | [把「該有 `A_d−1`／`A_d`／`A_d+1`」寫成 40 行程式](https://ithelp.ithome.com.tw/articles/10409576) | [`day12`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day12) | `tools/bva_checker.py`（38 行邏輯 + 7 組 KAT）；`tools/case_extractor.py` 含凍結宣告；`tests/test_bva.py` 移除重複實作改為 import |
 | Day 13 | [我刪掉一條規格，沒有人偷偷把它加回來](https://ithelp.ithome.com.tw/articles/10409818) | [`day13`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day13) | `generated/2026-09-11-spec-mutation/`：三臂突變 PRD、`del` 臂十份輸出、preflight 與 `manifest.yaml` |
 | Day 14 | [十三條測試全綠，殺得掉的只有「乘以 −1」](https://ithelp.ithome.com.tw/articles/10410618) | [`day14`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day14) | `spec/PRD-v1.1.md`（三缺口裁決 + PRD-11）；`tools/test_mutator.py`（21 個變異體，M/N 分群）；`tools/prd_cost.py`（KAT 釘住 v1.0 已發表的六個數字） |
-| Day 15 | 424 條案例，只有一小撮值得寫成 pytest | [`day15`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day15) | `spec/PRD-v1.2.md`（新增 PRD-12 圖表餘額保真）；`tools/verify_fixed.py`（三道事前驗收器 + 四個分支算子）；`shadow/calc_fixed.py`（隔離環境生成，不覆蓋 `calc.py`）；`golden/golden_set_v2.json`（v1 不刪不覆寫）；`generated/2026-09-15-prd-to-impl/` 與 `-v2/` 兩輪實驗 |
+| Day 15 | [424 條案例，只有一小撮值得寫成 pytest](https://ithelp.ithome.com.tw/articles/10411282) | [`day15`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day15) | `spec/PRD-v1.2.md`（新增 PRD-12 圖表餘額保真）；`tools/verify_fixed.py`（三道事前驗收器 + 四個分支算子）；`shadow/calc_fixed.py`（隔離環境生成，不覆蓋 `calc.py`）；`golden/golden_set_v2.json`（v1 不刪不覆寫）；`generated/2026-09-15-prd-to-impl/` 與 `-v2/` 兩輪實驗 |
 
 Day 1–5 沒有 tag，因為 repo 是 Day 6 才建立的——補打只會指到當天並不存在的狀態。
 **寧可留白，不要假的時間戳。**
