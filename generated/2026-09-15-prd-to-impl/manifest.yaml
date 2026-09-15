@@ -1,0 +1,170 @@
+; 生成實驗：PRD v1.1 → shadow/calc_fixed.py
+; 本檔在跑之前寫完。跑完只准往 execution_status 補記，不准改 plan 與 pass_criteria。
+
+experiment:
+  id: 2026-09-15-prd-to-impl
+  day: 15
+  question: >
+    給一份自足的規格書與介面契約、不給任何 legacy 程式碼，
+    AI 產出的實作能不能通過三道事前定好的驗收器？
+
+plan:
+  input: input-spec.md          ; 唯一輸入，模型不得看到其他檔案
+  prompt: prompt.md
+  runs: 1                        ; 這不是分佈實驗，是產物實驗；一次過不了就記錄失敗原因再跑
+  models:
+    - 待記錄                     ; 跑完補：廠商、模型版本、介面（網頁／API）
+
+  exclusions:                    ; 從 spec/PRD-v1.1.md 刻意拿掉的章節與理由
+    - section: "v1.1 改了什麼"
+      reason: 敘述 v1.0 與 v1.1 的差異，等於告訴模型舊版怎麼算
+    - section: "裁決紀錄"
+      reason: 三條裁決都寫了「現況是什麼」與未採用選項的數字
+    - section: "對照表：考古現場 → 條款"
+      reason: RC-01～RC-10 是 legacy 的缺陷清單
+    - section: "這份 PRD 會讓數字變多少"
+      reason: 直接列出 legacy 的 9,317,668 / 4,697,171 / 19,991,456 等實際輸出
+    - section: "尚未涵蓋"
+      reason: >
+        原本只打算排除四個章節。重掃貼上檔時發現這一節直接點名
+        「缺陷 B（壽命倒掛）與 A'（負值遮蔽）⋯⋯是實作沒做好」——
+        四個缺陷被說出兩個，驗收器 2（缺陷不得遺傳）當場失效；
+        另兩項「多筆大筆支出同年」「PRD-02 折現率 r 或 r_p」則是
+        該由模型自己發現的 GAP，列出來等於送答案。整節移除，
+        只保留「規格沒寫的不要自己補、不要假設預設值」這句原則。
+    - section: "標題與導言（生效日、取代 PRD v1.0、Day 30 修復版）"
+      reason: 洩漏系列脈絡與前一版規格的存在
+    - section: "v1.0 → v1.1 異動摘要"
+      reason: 點出哪幾條改過，等於指向舊實作與新規格的差異處
+    - item: "input-spec.md 檔頭原有的「刻意排除⋯⋯回推舊實作」說明"
+      reason: 那段是寫給人看的，誤留在貼上檔裡等於明講這是一場反抄襲測驗
+  exclusion_check: >
+    以程式對 _paste/paste.txt 掃 20 個關鍵詞（缺陷 B／缺陷 A'／legacy／shadow/calc／
+    v1.0／v1.1／Day 30／本系列／verify_fixed／四組 legacy 數值⋯⋯），全數為 0 才放行。
+    第一版貼上檔有 11 個關鍵詞命中，已重建；掃描結果與重建紀錄見本節上方 exclusions。
+
+  isolation_required:            ; 同 Day 10／13 的 preflight
+    - 全新對話，無記憶、無個人化
+    - 不得開啟任何檔案存取、程式執行、網頁搜尋
+    - 不得能讀到本 repo 或系列已發佈文章
+    - 跑之前先問模型「你現在能用哪些工具」，逐字存成 preflight.txt
+
+  known_validity_threat: >
+    本系列的助手在撰寫驗收器的同一個對話裡讀過 shadow/calc.py 多次，
+    因此**不得**由該對話產生 calc_fixed.py。生成必須換到乾淨環境。
+    這條威脅與 Day 10 的十份污染資料同類，事前記錄於此。
+
+pass_criteria:                   ; 三道驗收器，實作為 tools/verify_fixed.py
+  gate_1_diff_decomposition:
+    rule: >
+      golden_set_v1.json 的 23 組，每組 fixed − legacy 的
+      projected_savings 與 target_fund 差值，必須等於
+      「只改 PRD-01」與「只改 PRD-02」兩個分支算子各自貢獻之和。
+    tolerance: {relative: 1.0e-6, absolute_floor_twd: 1.0e-3}
+    rationale: 對不上就代表產生實作時順手改了條款以外的邏輯
+    instrument_self_check: >
+      分支算子在兩個開關全關時必須與 legacy 逐位元一致（已驗：23/23 通過）
+  gate_2_defect_tests_all_red:
+    rule: tests/test_characterization.py 的四條 test_defect_* 對著 fixed 必須全部失敗
+    rationale: 任何一條還是綠的，代表 legacy 的缺陷語意被無聲遺傳
+  gate_3_illegal_raises:
+    rule: 四組非法輸入必須拋 ValueError
+    inputs: [壽命 <= 退休年齡, 退休年齡 <= 現齡, 月支出為負, 本金為負]
+    rationale: PRD-04 明訂校驗收斂進 calculate()，禁止靜默補零或回傳含假數字的 Result
+
+  on_pass: 23 組新輸出晉升 golden_set_v2.json；v1 不刪不覆寫
+  on_fail: calc_fixed.py 不進 repo；失敗項逐條記入 execution_status 後才准重跑
+
+expectations:                    ; 跑之前寫下的猜測，為了讓結果有對照
+  note: 猜對要問自己有沒有在輸入裡洩漏，猜錯才是資料
+  gate_1: 會過。PRD-01 與 PRD-02 在算式上互不相干，疊加應該成立
+  gate_2: >
+    最可能遺傳的是缺陷 A'（balances_charted 夾 0）。
+    PRD-03 只寫「禁止 Math.max(0, ...) 截斷真實餘額」，
+    沒有明講 balances_charted 該不該夾——模型很可能為了「圖表好看」自己夾。
+  gate_3: >
+    會過壽命倒掛與負值，但「退休年齡 <= 現齡」可能被漏掉，
+    因為 PRD-04 寫的是 `A_c < A_r < A_d` 連續不等式，容易只實作兩端。
+  gap_list: 預期模型會列出「多筆大筆支出落在同一年」與「PRD-02 折現率是 r 還是 r_p」
+
+execution_status:
+  state: 已執行，未通過
+  date: 2026-09-15
+  model: Gemini（AI Studio 網頁）
+  settings_recorded: 待補       ; 模型版本、temperature、thinking 開關
+
+  preflight:
+    file: preflight.txt
+    verdict: 不可用為隔離證據
+    detail: >
+      模型自述具備網頁搜尋、圖像生成、程式碼執行、檔案分析四項能力。
+      但那是產品層級的功能描述，不是本次 session 的實際開關狀態——
+      與 Day 13 的 Claude Code preflight（逐項列出已載入工具）性質不同。
+      依證據層級「介面截圖 > 作者口述 > 模型自述」，此處缺最高的兩層。
+      待補：AI Studio 側邊欄四個開關的截圖。
+
+  gate_3: 通過（4/4 非法輸入皆拋 ValueError）
+  gate_2:
+    result: 1 項不合格
+    detail: >
+      test_defect_a_prime_clamp_hides_deficit 在 fixed 上仍然通過 →
+      缺陷 A'（負餘額被夾 0）被遺傳。
+      產物第 131 行：balances_charted = tuple(max(0.0, b) for b in balances_raw)
+    conflict_between_rulers: >
+      模型把這件事列成 GAP-1 並寫明理由（「規格未定義此欄位的具體行為。
+      採用：取 max(0, balance)，因為通常圖表端不預期顯示負值餘額」）。
+      依 Day 10 立的尺「罪在不標示，不在推論」，這是好行為；
+      依驗收器 2，這是不合格。兩把尺對同一個行為給出相反判定，
+      本次不回頭改任一把尺，照實記錄。
+    leak_suspicion: >
+      PRD-03 條文本身寫著「禁止 `Math.max(0, ...)` 截斷真實餘額」——
+      這句話在禁止的同時，也把 max(0, ...) 這個寫法示範給了模型。
+      我的 expectations 猜中 gate_2 會掛在缺陷 A'，但猜中的原因
+      可能有一部分是我自己在輸入裡種的。
+  gate_1:
+    result: 5 項不合格，但**歸屬於量尺，不歸屬於產物**
+    cause_1: >
+      只建了 PRD-01、PRD-02 兩個分支算子，而 v1.1 相對 legacy 改動的條款有四條
+      （另有 PRD-05 大筆支出上界、PRD-10 收入通膨基準年）。
+      補上後 inc_labor_70、def_c_ghost、def_c_ghost_far 三組殘差歸零。
+    cause_2: >
+      補齊四條之後，inc_labor_65 與 inc_both 仍差 166,147 與 80,949。
+      原因是「條款貢獻可加」這個假設本身不成立：PRD-02 多算的那一年（65 歲）
+      剛好有勞保收入，而該年收入又受 PRD-10 改判影響，兩條款產生交互作用。
+      單獨相加 ≠ 四條同時開啟。
+    artifact_verdict: >
+      四條同時開啟的結果與產物逐位元相符（三組殘差皆為 0.00），
+      代表產物在這五組上算的與規格一致。
+    not_amended: >
+      依 Day 10「跑完不改」，不回頭修改 gate_1 的 rule。
+      量尺的缺陷記在這裡，修正版另立編號，不覆蓋本次結果。
+
+  interface_gap:
+    detail: 產物進入點名為 calculate_retirement，非 calculate
+    attribution: >
+      我方錯誤。重建 input-spec.md 以清除洩漏時，
+      介面契約的程式碼區塊漏掉了 `def calculate(p: Params) -> Result:` 那一行，
+      文字卻仍寫著「公開以下三個 dataclass 與一個函式」。
+      清洩漏的掃描只檢查「不該有的字串在不在」，沒有檢查「該有的內容還在不在」。
+
+  expectations_vs_result:
+    gate_1: 猜錯。原寫「會過，PRD-01 與 PRD-02 互不相干」——實際是量尺不完整且可加性假設有條件
+    gate_2: 猜中（缺陷 A' 被遺傳），但見 leak_suspicion
+    gate_3: 猜錯。原猜「退休年齡 <= 現齡可能被漏掉」，實際四組全過
+    gap_list: >
+      猜中一半。模型自列 5 條 GAP，其中 GAP-2（PRD-02 折現率未明指 r 或 r_p）
+      與我在 PRD v1.1「尚未涵蓋」寫的一致——而那一節已從輸入移除，所以是它自己找到的。
+      未猜中的是 GAP-5：「其他收入沒有對應的請領年齡參數」，我沒想到這個洞。
+      「多筆大筆支出落在同一年」它沒有提。
+
+  next:
+    - 補 AI Studio 開關截圖與模型設定，preflight 才算數
+    - gate_1 量尺修正版：四個分支算子 + 改為比對「四條同時開啟」而非「單獨相加」
+    - 缺陷 A' 的處置需人裁決：規格要不要為 balances_charted 立條款（PRD-12？）
+    - 產物依 on_fail 不進 repo，留在 generated/ 下
+
+  superseded_by: 2026-09-15-prd-to-impl-v2
+  superseded_reason: >
+    量尺（gate_1）與輸入（規格升 v1.2、介面契約補回函式簽名）都改了，
+    依「跑完不改」另立編號。本輪結果不覆蓋、不刪除。
+    量尺修正後重跑本輪產物：gate_1 通過、gate_3 通過、gate_2 仍掛缺陷 A'。

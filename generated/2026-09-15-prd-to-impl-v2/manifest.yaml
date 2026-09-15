@@ -1,0 +1,219 @@
+; 生成實驗（第二輪）：PRD v1.2 → shadow/calc_fixed.py
+; 本檔在跑之前寫完。跑完只准往 execution_status 補記，不准改 plan 與 pass_criteria。
+
+experiment:
+  id: 2026-09-15-prd-to-impl-v2
+  day: 15
+  supersedes: 2026-09-15-prd-to-impl
+  question: >
+    第一輪的產物在補好量尺後只掛一項：balances_charted 被夾 0（缺陷 A' 遺傳）。
+    模型把它列成 GAP-1 並說明理由，而 v1.1 確實沒寫。
+    規格補上 PRD-12 明訂「不得夾 0」之後，同一個模型還會不會夾？
+
+why_a_new_experiment:                ; 為什麼另立編號而不是重跑第一輪
+  - 判準改了（gate_1 的 rule），依「跑完不改」不得就地修改第一輪
+  - 輸入改了（規格從 v1.1 升到 v1.2，多一條 PRD-12）
+  - 第一輪整包保留不刪，處理方式同 Day 10 的 CONTAMINATED.md
+
+changes_from_v1:
+  - item: 輸入規格
+    was: PRD v1.1（11 條）
+    now: PRD v1.2（12 條，新增 PRD-12 圖表餘額保真）
+    why: 第一輪撞出來的規格缺口，經閘門 1 裁決後補上
+  - item: 介面契約
+    was: 程式碼區塊只列三個 dataclass
+    now: "補回 `def calculate(p: Params) -> Result:`"
+    why: >
+      第一輪清洩漏時把那一行一起刪了，文字卻仍寫「三個 dataclass 與一個函式」，
+      導致產物的進入點叫 calculate_retirement。
+      **成因是掃描只檢查「不該有的字串在不在」，沒檢查「該有的內容還在不在」。**
+      v2 的檢查改為雙向：must_not 26 項全數為 0，must_have 18 項全數在位。
+  - item: gate_1 的判準
+    was: 產物差值 = PRD-01 與 PRD-02 兩個分支算子單獨貢獻之和
+    now: 產物輸出 = 四個分支算子（PRD-01／02／05／10）同時開啟的輸出
+    why: >
+      兩個成因。①只建兩條分支算子，但 v1.1 相對 legacy 改動的條款有四條。
+      ②即使補齊四條，「條款貢獻可加」這個假設本身也有條件——
+      PRD-02 多算的那一年若剛好有勞保收入，該年收入又受 PRD-10 影響，
+      兩條款產生交互作用。實測交互作用：inc_labor_65 為 166,147、inc_both 為 80,949。
+      v2 改為直接比對「同時開啟」，單獨相加值保留為診斷輸出。
+  - item: preflight 的問法
+    was: 「你現在能使用哪些工具或功能？」
+    now: 見 preflight_question
+    why: >
+      第一輪的回覆是產品層級的功能簡介（網頁搜尋、圖像生成、程式碼執行⋯⋯），
+      不是本次 session 的開關狀態，無法作為隔離證據。
+
+plan:
+  input: input-spec.md
+  prompt: prompt.md
+  runs: 1
+  model_required: 與第一輪同一個模型與介面（控制變因；唯一該變的是規格多一條）
+  models:
+    - 待記錄                         ; 廠商、模型版本、介面、temperature、thinking 開關
+
+  exclusions:                        ; 同第一輪，理由不重複
+    - PRD v1.2 的「v1.2 改了什麼」「裁決紀錄」「對照表」「這份 PRD 會讓數字變多少」「尚未涵蓋」
+    - 標題、生效日、版本號、系列脈絡
+  exclusion_check: >
+    雙向掃描 _paste/paste.txt：
+    must_not 26 項（含「缺陷 A'」「GAP-1」「21,232,803」等第一輪新增的洩漏詞）全數為 0；
+    must_have 18 項（介面四要素 + PRD-01～12 共十二條）全數在位。兩邊都過才放行。
+
+  isolation_required:
+    - 全新對話，無記憶、無個人化
+    - AI Studio 側邊欄工具全關，**須附開關狀態截圖**（證據層級：截圖 > 作者口述 > 模型自述）
+    - preflight 與正式生成分屬兩個不同的新對話
+  preflight_question: >
+    「請只回答這次對話的實際狀態，不要介紹你的產品功能：
+      (1) 這次對話目前已啟用哪些工具？逐項列出名稱。
+      (2) 你能否讀取外部網址、執行程式碼、或存取任何檔案？
+      (3) 你是否有這個帳號先前對話的記憶或個人化資料？
+      (4) 是否有系統提示或自訂指令正在生效？若有，逐字複述。」
+
+  known_validity_threats:
+    - id: VT-1
+      detail: >
+        PRD-03 的條文寫著「禁止 `Math.max(0, ...)` 截斷真實餘額」——
+        這句話在禁止的同時也把 max(0, ...) 這個寫法示範給了模型。
+        閘門 1 已裁決不修改條文（理由：那句話從 JS 受測物考古而來，
+        改掉會與 RC-05／Day 3 的敘述脫節），改為每輪在此明列。
+        **因此第二輪若仍夾 0，不能全歸因於模型傾向。**
+    - id: VT-2
+      detail: >
+        本系列助手在撰寫驗收器的對話裡讀過 shadow/calc.py，不得由該對話生成產物。
+    - id: VT-3
+      detail: >
+        第二輪與第一輪用同一個模型，若該模型有跨對話記憶未完全關閉，
+        第一輪的內容可能殘留。preflight 第 (3) 問即為此而設。
+
+pass_criteria:                       ; 三道驗收器，實作為 tools/verify_fixed.py
+  gate_0_interface:
+    rule: 公開 Params／Result／LumpSum 三個 dataclass 與 calculate 函式，欄位順序型別一致
+    note: 不計入三道驗收器，是「能不能開始量」的前置
+  gate_1_matches_spec_model:
+    rule: >
+      golden_set_v1.json 的 23 組（依 PRD-04 被拒收者除外），
+      產物的 projected_savings 與 target_fund 必須等於
+      四個分支算子（PRD-01／02／05／10）同時開啟的輸出。
+    tolerance: {relative: 1.0e-6, absolute_floor_twd: 1.0e-3}
+    instrument_self_check: 開關全關時與 legacy 逐位元一致（已驗：23/23）
+    diagnostic_only: 另印出「單獨相加 vs 同時開啟」的交互作用差額，不作為判準
+  gate_2_defect_tests_all_red:
+    rule: 四條 test_defect_* 對著產物必須全部失敗
+    changed_meaning: >
+      第一輪時 PRD 對 balances_charted 沉默，這道門在量「規格沉默處模型會不會撞上缺陷」。
+      v1.2 補上 PRD-12 之後，它才真正在量「有明文規定，模型會不會照做」。
+  gate_3_illegal_raises:
+    rule: 四組非法輸入必須拋 ValueError
+    inputs: [壽命 <= 退休年齡, 退休年齡 <= 現齡, 月支出為負, 本金為負]
+
+  on_pass: 23 組新輸出晉升 golden_set_v2.json；v1 不刪不覆寫
+  on_fail: 產物不進 repo，留在本目錄；失敗項逐條記入 execution_status
+
+expectations:                        ; 跑之前寫下，猜對要問有沒有洩漏，猜錯才是資料
+  gate_0: 會過。這次契約把函式簽名補回去了
+  gate_1: >
+    會過。第一輪在量尺修好之後就是過的，而 PRD-12 不影響 target_fund 與 projected_savings。
+  gate_2: >
+    會過。PRD-12 是明文，且驗收器 3 的實測顯示這個模型對明文條款的遵循度不錯
+    （四組非法輸入全拋，包含我原本猜它會漏的「退休年齡 <= 現齡」）。
+    **若仍夾 0，那比第一輪嚴重得多——那不是規格沒寫，是寫了不看。**
+  gate_3: 會過
+  gap_list: >
+    預期 GAP 條數會變少（PRD-12 補掉了第一輪的 GAP-1）。
+    第一輪的 GAP-5「其他收入沒有對應的請領年齡參數」規格仍未處理，預期它會再提一次。
+    若它這次沒提，要問的是它為什麼上次提了這次不提。
+
+execution_status:
+  state: 已執行，三道全過
+  date: 2026-09-16
+
+  model:
+    name: Gemini 3.1 Pro Preview
+    id: gemini-3.1-pro-preview
+    interface: AI Studio 網頁
+    temperature: 1
+    thinking_level: High
+    output_length: 65536
+    media_resolution: Default
+    evidence: preflight.png（Run settings 側欄截圖）
+
+  preflight:
+    files: [preflight.txt, preflight.png]
+    verdict: 可用為隔離證據
+    tools_all_off: [Structured outputs, Code execution, Function calling,
+                    Grounding with Google Search, Grounding with Google Maps, URL context]
+    discrepancy: >
+      截圖的 System instructions 欄位是空的（僅顯示 placeholder），
+      模型卻回報「有一條系統提示正在生效，逐字內容為 Your knowledge cutoff date is January 2025」。
+      **兩者都沒說謊，它們在講不同的東西**——UI 顯示的是使用者設定的那一格，
+      模型看到的是「使用者設定的 + 平台注入的」。
+      這修正了本系列原本的證據層級假設：截圖並非在所有面向上都優於模型自述，
+      兩者互補，缺一不可。
+    note_vs_day13: Day 13 的兩行紀錄缺失（temperature 與 thinking 未記錄）本輪已補齊
+
+  gate_0_interface: 通過（Params／Result／LumpSum 欄位順序型別全符，進入點為 calculate）
+  gate_1: 通過（23 組扣除 2 組被 PRD-04 拒收，其餘全部等於四條同時開啟的輸出）
+  gate_2:
+    result: 通過（四條 test_defect_* 全紅）
+    red_reason_audit:                ; 全紅可能是每條都拋例外造成的假象，逐條查過
+      test_defect_a_prime_clamp_hides_deficit: AssertionError 於 `assert r.balances_charted[-1] == 0.0`
+      test_defect_a_target_uses_ordinary_annuity: AssertionError 於期初／期末年金比值
+      test_defect_c_ghost_expense_counted_but_never_charted: AssertionError 於 `with_ghost.target_fund > without.target_fund`
+      test_defect_b_inverted_lifespan_yields_zero_target: >
+        ValueError，非 AssertionError。輸入在任何斷言執行之前就被 PRD-04 擋下。
+        仍屬正確行為，但紅的機制與另外三條不同，記於此。
+    prd12_effect: >
+      產物第 131 行 `balances_charted=balances_tuple`，並註明 `# PRD-12: 圖表餘額保真`。
+      實測 balances_raw 與 balances_charted 逐項相等（末年皆為 -22,526,423）。
+  gate_3: 通過（4/4）
+
+  gap_list_comparison:
+    round_1: 5 條
+    round_2: 5 條
+    closed: >
+      第一輪的 GAP-1（balances_charted 未定義）消失——PRD-12 補掉了它。
+    newly_raised:
+      - "PRD-03：軌跡記錄的是期初或期末餘額未載明（本輪採期末）。**第一輪也提過類似的，但這輪講得更精確**"
+      - "PRD-04：`labor_insurance_start_age` 等欄位預設為 0，與「年齡為正整數」衝突。本輪自行區分主年齡（須 > 0）與請領年齡（允許 >= 0）"
+      - "PRD-04：報酬率與通膨率可否為負未載明（本輪允許）"
+      - "PRD-05：多筆大筆支出落在同一年未載明（本輪直接加總）"
+    disappeared: >
+      第一輪的 GAP-5「其他收入沒有對應的請領年齡參數」本輪未提。
+      規格在這一點上沒有任何改動，所以**這是模型的不穩定，不是規格變了**。
+      temperature = 1，單次產物不具決定性。
+    note: >
+      PRD-05 多筆同年這一條，第一輪沒提、第二輪提了，而我在 expectations
+      兩輪都猜它會提。兩輪合起來看：同一份規格的缺口清單，跑兩次不一樣。
+
+  expectations_vs_result:
+    gate_0: 猜中
+    gate_1: 猜中
+    gate_2: >
+      猜中，但這次的猜中沒有資訊量——PRD-12 是我剛寫進去的明文，
+      模型照做是應該的。真正有資訊的是第一輪那次（規格沉默時它會自己夾）。
+    gate_3: 猜中
+    gap_list: >
+      猜錯一半。猜中「PRD-05 多筆同年會被提」，
+      猜錯「第一輪的 GAP-5 會再提一次」——它沒提。
+
+  caveats:
+    - id: C-1
+      detail: >
+        temperature = 1，輸出非決定性。**單次通過不等於這份規格穩定地可被實作。**
+        若要主張「PRD v1.2 足以支撐實作」，需要 ≥5 次獨立生成（同鐵律）。
+    - id: C-2
+      detail: >
+        VT-1 仍然成立：PRD-03 條文示範了 `Math.max(0, ...)`。
+        本輪 PRD-12 明文要求不得截斷，模型照做——但無法排除
+        「它照做是因為 PRD-12，還是因為兩條互相矛盾時選了後寫的那條」。
+    - id: C-3
+      detail: >
+        產物的 balances_raw 語意與 legacy 不同（本輪記期末，legacy 記期初後滾存）。
+        GAP 有標示，但 golden v2 的 final_balance_raw 因此不可與 v1 直接比較。
+
+  next:
+    - 依 on_pass 產生 golden_set_v2.json，v1 不刪不覆寫
+    - 產物移入 shadow/calc_fixed.py（commit 由作者決定）
+    - C-1：是否補跑 4 次以滿足「比率宣稱需 ≥5 次」的鐵律，待定

@@ -1,0 +1,523 @@
+{
+  "version": "v2",
+  "generated": "2026-09-16",
+  "source": "shadow/calc_fixed.py（PRD v1.2 實作），輸入沿用 golden_set_v1.json 的 23 組",
+  "note": "v1 記錄 legacy 的行為（含缺陷），v2 記錄規格要求的行為，兩者並存不互相取代。三道驗收器見 tools/verify_fixed.py，結果記於 generated/2026-09-15-prd-to-impl-v2/manifest.yaml。⚠ final_balance_raw 與 v1 不可直接比較：v2 記期末餘額，v1 記期初扣款後滾存。⚠ 2 組依 PRD-04 被拒收（expected 為 null），v1 中 legacy 照算。",
+  "count": 23,
+  "rejected_by_prd04": [
+    "def_b_inverted",
+    "def_b_equal"
+  ],
+  "cases": [
+    {
+      "id": "life_young",
+      "desc": "25歲起步、月存1萬",
+      "group": "典型軌跡",
+      "input": {
+        "current_age": 25,
+        "retirement_age": 65,
+        "life_expectancy": 85,
+        "current_savings": 100000,
+        "monthly_investment": 10000,
+        "monthly_expense_today": 30000
+      },
+      "expected": {
+        "projected_savings": 37337416.86793301,
+        "target_fund": 13841878.244886853,
+        "retirement_gap": -23495538.62304616,
+        "final_balance_raw": 53540883.17239173,
+        "final_balance_charted": 53540883.17239173
+      }
+    },
+    {
+      "id": "life_mid",
+      "desc": "42歲、Day8 那組",
+      "group": "典型軌跡",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 85,
+        "current_savings": 800000,
+        "monthly_investment": 19391,
+        "monthly_expense_today": 30000
+      },
+      "expected": {
+        "projected_savings": 20300850.968616787,
+        "target_fund": 9885351.236696037,
+        "retirement_gap": -10415499.73192075,
+        "final_balance_raw": 23734508.20922473,
+        "final_balance_charted": 23734508.20922473
+      }
+    },
+    {
+      "id": "life_late",
+      "desc": "55歲晚起步",
+      "group": "典型軌跡",
+      "input": {
+        "current_age": 55,
+        "retirement_age": 65,
+        "life_expectancy": 85,
+        "current_savings": 3000000,
+        "monthly_investment": 50000,
+        "monthly_expense_today": 40000
+      },
+      "expected": {
+        "projected_savings": 15806222.462719463,
+        "target_fund": 10188930.703741847,
+        "retirement_gap": -5617291.758977616,
+        "final_balance_raw": 12800505.093237443,
+        "final_balance_charted": 12800505.093237443
+      }
+    },
+    {
+      "id": "life_early_retire",
+      "desc": "50歲提早退休",
+      "group": "典型軌跡",
+      "input": {
+        "current_age": 35,
+        "retirement_age": 50,
+        "life_expectancy": 90,
+        "current_savings": 2000000,
+        "monthly_investment": 60000,
+        "monthly_expense_today": 35000
+      },
+      "expected": {
+        "projected_savings": 27376136.251510058,
+        "target_fund": 16135235.552519249,
+        "retirement_gap": -11240900.698990809,
+        "final_balance_raw": 56126507.97774016,
+        "final_balance_charted": 56126507.97774016
+      }
+    },
+    {
+      "id": "bd_zero_return",
+      "desc": "報酬率 0%",
+      "group": "邊界",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 85,
+        "current_savings": 800000,
+        "monthly_investment": 19391,
+        "monthly_expense_today": 30000,
+        "pre_retirement_return": 0.0,
+        "post_retirement_return": 0.0
+      },
+      "expected": {
+        "projected_savings": 6151916,
+        "target_fund": 14636769.808696218,
+        "retirement_gap": 8484853.808696218,
+        "final_balance_raw": -8484853.808696216,
+        "final_balance_charted": -8484853.808696216
+      }
+    },
+    {
+      "id": "bd_zero_infl",
+      "desc": "通膨 0%",
+      "group": "邊界",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 85,
+        "current_savings": 800000,
+        "monthly_investment": 19391,
+        "monthly_expense_today": 30000,
+        "inflation_rate": 0.0
+      },
+      "expected": {
+        "projected_savings": 20300850.968616787,
+        "target_fund": 5252517.484188367,
+        "retirement_gap": -15048333.48442842,
+        "final_balance_raw": 34291661.83228852,
+        "final_balance_charted": 34291661.83228852
+      }
+    },
+    {
+      "id": "bd_one_year",
+      "desc": "退休後只有一年",
+      "group": "邊界",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 66,
+        "current_savings": 800000,
+        "monthly_investment": 19391,
+        "monthly_expense_today": 30000
+      },
+      "expected": {
+        "projected_savings": 20300850.968616787,
+        "target_fund": 1124450.4753118663,
+        "retirement_gap": -19176400.49330492,
+        "final_balance_raw": 20741194.7735586,
+        "final_balance_charted": 20741194.7735586
+      }
+    },
+    {
+      "id": "bd_no_savings",
+      "desc": "零本金零月存",
+      "group": "邊界",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 85,
+        "current_savings": 0,
+        "monthly_investment": 0,
+        "monthly_expense_today": 30000
+      },
+      "expected": {
+        "projected_savings": 0.0,
+        "target_fund": 9885351.236696037,
+        "retirement_gap": 9885351.236696037,
+        "final_balance_raw": -22526422.746608283,
+        "final_balance_charted": -22526422.746608283
+      }
+    },
+    {
+      "id": "bd_high_return",
+      "desc": "報酬率 15%",
+      "group": "邊界",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 85,
+        "current_savings": 800000,
+        "monthly_investment": 19391,
+        "monthly_expense_today": 30000,
+        "pre_retirement_return": 0.15,
+        "post_retirement_return": 0.15
+      },
+      "expected": {
+        "projected_savings": 70947909.34313542,
+        "target_fund": 4617418.818831309,
+        "retirement_gap": -66330490.52430411,
+        "final_balance_raw": 1248440521.4772513,
+        "final_balance_charted": 1248440521.4772513
+      }
+    },
+    {
+      "id": "bd_high_infl",
+      "desc": "通膨 6%",
+      "group": "邊界",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 85,
+        "current_savings": 800000,
+        "monthly_investment": 19391,
+        "monthly_expense_today": 30000,
+        "inflation_rate": 0.06
+      },
+      "expected": {
+        "projected_savings": 20300850.968616787,
+        "target_fund": 35169566.166796595,
+        "retirement_gap": 14868715.198179808,
+        "final_balance_raw": -33882353.4170207,
+        "final_balance_charted": -33882353.4170207
+      }
+    },
+    {
+      "id": "inc_labor_65",
+      "desc": "勞保 65 起 2.4 萬",
+      "group": "收入",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 85,
+        "current_savings": 800000,
+        "monthly_investment": 19391,
+        "monthly_expense_today": 30000,
+        "labor_insurance_pension": 24000,
+        "labor_insurance_start_age": 65
+      },
+      "expected": {
+        "projected_savings": 20300850.968616787,
+        "target_fund": 4870268.048479805,
+        "retirement_gap": -15430582.920136983,
+        "final_balance_raw": 35162719.64068071,
+        "final_balance_charted": 35162719.64068071
+      }
+    },
+    {
+      "id": "inc_labor_70",
+      "desc": "勞保晚領 70 起",
+      "group": "收入",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 85,
+        "current_savings": 800000,
+        "monthly_investment": 19391,
+        "monthly_expense_today": 30000,
+        "labor_insurance_pension": 24000,
+        "labor_insurance_start_age": 70
+      },
+      "expected": {
+        "projected_savings": 20300850.968616787,
+        "target_fund": 6598080.13645332,
+        "retirement_gap": -13702770.832163468,
+        "final_balance_raw": 31225436.625798147,
+        "final_balance_charted": 31225436.625798147
+      }
+    },
+    {
+      "id": "inc_both",
+      "desc": "勞保+勞退",
+      "group": "收入",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 85,
+        "current_savings": 800000,
+        "monthly_investment": 19391,
+        "monthly_expense_today": 30000,
+        "labor_insurance_pension": 24000,
+        "labor_insurance_start_age": 65,
+        "labor_pension_monthly": 15000,
+        "labor_pension_start_age": 60
+      },
+      "expected": {
+        "projected_savings": 20300850.968616787,
+        "target_fund": 1409607.3768794315,
+        "retirement_gap": -18891243.591737356,
+        "final_balance_raw": 43048762.67591904,
+        "final_balance_charted": 43048762.67591904
+      }
+    },
+    {
+      "id": "inc_over",
+      "desc": "收入大於支出",
+      "group": "收入",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 85,
+        "current_savings": 800000,
+        "monthly_investment": 19391,
+        "monthly_expense_today": 30000,
+        "labor_insurance_pension": 80000,
+        "labor_insurance_start_age": 65
+      },
+      "expected": {
+        "projected_savings": 20300850.968616787,
+        "target_fund": 0.0,
+        "retirement_gap": -20300850.968616787,
+        "final_balance_raw": 46260930.95583302,
+        "final_balance_charted": 46260930.95583302
+      }
+    },
+    {
+      "id": "lump_in_range",
+      "desc": "75歲300萬",
+      "group": "大筆支出",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 85,
+        "current_savings": 800000,
+        "monthly_investment": 19391,
+        "monthly_expense_today": 30000,
+        "lump_sums": [
+          {
+            "age": 75,
+            "amount": 3000000
+          }
+        ]
+      },
+      "expected": {
+        "projected_savings": 20300850.968616787,
+        "target_fund": 13781123.218783148,
+        "retirement_gap": -6519727.74983364,
+        "final_balance_raw": 14856947.413295181,
+        "final_balance_charted": 14856947.413295181
+      }
+    },
+    {
+      "id": "lump_at_retire",
+      "desc": "退休當年一筆",
+      "group": "大筆支出",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 85,
+        "current_savings": 800000,
+        "monthly_investment": 19391,
+        "monthly_expense_today": 30000,
+        "lump_sums": [
+          {
+            "age": 65,
+            "amount": 1000000
+          }
+        ]
+      },
+      "expected": {
+        "projected_savings": 20300850.968616787,
+        "target_fund": 11462250.500887435,
+        "retirement_gap": -8838600.467729352,
+        "final_balance_raw": 20141120.51834252,
+        "final_balance_charted": 20141120.51834252
+      }
+    },
+    {
+      "id": "lump_at_death",
+      "desc": "壽命當年一筆",
+      "group": "大筆支出",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 85,
+        "current_savings": 800000,
+        "monthly_investment": 19391,
+        "monthly_expense_today": 30000,
+        "lump_sums": [
+          {
+            "age": 85,
+            "amount": 1000000
+          }
+        ]
+      },
+      "expected": {
+        "projected_savings": 20300850.968616787,
+        "target_fund": 10954752.270953495,
+        "retirement_gap": -9346098.697663292,
+        "final_balance_raw": 21297591.279665522,
+        "final_balance_charted": 21297591.279665522
+      }
+    },
+    {
+      "id": "lump_multi",
+      "desc": "三筆",
+      "group": "大筆支出",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 85,
+        "current_savings": 800000,
+        "monthly_investment": 19391,
+        "monthly_expense_today": 30000,
+        "lump_sums": [
+          {
+            "age": 70,
+            "amount": 500000
+          },
+          {
+            "age": 78,
+            "amount": 2000000
+          },
+          {
+            "age": 83,
+            "amount": 800000
+          }
+        ]
+      },
+      "expected": {
+        "projected_savings": 20300850.968616787,
+        "target_fund": 13940455.269264042,
+        "retirement_gap": -6360395.699352745,
+        "final_balance_raw": 14493866.624330102,
+        "final_balance_charted": 14493866.624330102
+      }
+    },
+    {
+      "id": "def_b_inverted",
+      "desc": "缺陷B：壽命60<退休65",
+      "group": "缺陷現況",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 60,
+        "current_savings": 800000,
+        "monthly_investment": 19391,
+        "monthly_expense_today": 30000
+      },
+      "expected": null,
+      "rejected_by_prd04": "年齡必須為正整數且 current_age < retirement_age < life_expectancy"
+    },
+    {
+      "id": "def_b_equal",
+      "desc": "缺陷B：壽命=退休年齡",
+      "group": "缺陷現況",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 65,
+        "current_savings": 800000,
+        "monthly_investment": 19391,
+        "monthly_expense_today": 30000
+      },
+      "expected": null,
+      "rejected_by_prd04": "年齡必須為正整數且 current_age < retirement_age < life_expectancy"
+    },
+    {
+      "id": "def_c_ghost",
+      "desc": "缺陷C：95歲200萬、壽命85",
+      "group": "缺陷現況",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 85,
+        "current_savings": 800000,
+        "monthly_investment": 19391,
+        "monthly_expense_today": 30000,
+        "lump_sums": [
+          {
+            "age": 95,
+            "amount": 2000000
+          }
+        ]
+      },
+      "expected": {
+        "projected_savings": 20300850.968616787,
+        "target_fund": 9885351.236696037,
+        "retirement_gap": -10415499.73192075,
+        "final_balance_raw": 23734508.20922473,
+        "final_balance_charted": 23734508.20922473
+      }
+    },
+    {
+      "id": "def_c_ghost_far",
+      "desc": "缺陷C：100歲500萬",
+      "group": "缺陷現況",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 85,
+        "current_savings": 800000,
+        "monthly_investment": 19391,
+        "monthly_expense_today": 30000,
+        "lump_sums": [
+          {
+            "age": 100,
+            "amount": 5000000
+          }
+        ]
+      },
+      "expected": {
+        "projected_savings": 20300850.968616787,
+        "target_fund": 9885351.236696037,
+        "retirement_gap": -10415499.73192075,
+        "final_balance_raw": 23734508.20922473,
+        "final_balance_charted": 23734508.20922473
+      }
+    },
+    {
+      "id": "def_ap_clamp",
+      "desc": "缺陷A’：資產耗盡、圖表夾0",
+      "group": "缺陷現況",
+      "input": {
+        "current_age": 42,
+        "retirement_age": 65,
+        "life_expectancy": 85,
+        "current_savings": 0,
+        "monthly_investment": 0,
+        "monthly_expense_today": 30000
+      },
+      "expected": {
+        "projected_savings": 0.0,
+        "target_fund": 9885351.236696037,
+        "retirement_gap": 9885351.236696037,
+        "final_balance_raw": -22526422.746608283,
+        "final_balance_charted": -22526422.746608283
+      }
+    }
+  ]
+}

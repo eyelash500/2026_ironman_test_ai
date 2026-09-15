@@ -1,0 +1,71 @@
+# 規格書：退休試算引擎
+
+符號：`A_c` 現齡、`A_r` 退休年齡、`A_d` 預期壽命、`A_e` 大筆支出年齡、
+`A_p` 各項退休後收入的請領年齡、`r` 退休前報酬率、`r_p` 退休後報酬率、`i` 通膨率。
+
+**本規格是唯一的基準真理。** 凡是要實作的行為，規格必須有條款；
+規格沒有載明的行為，程式碼不准自己發揮。**不要假設它預設了什麼。**
+
+## 條款
+
+| 編號 | 規則 | 內容 | 邊界處置 |
+|---|---|---|---|
+| PRD-01 | 累積期增值 | 本金與月存**統一採名目月利率 `r/12`**，同為月複利；**月存為期末投入**（第一筆發生於第 1 個月月底，共 `(A_r − A_c) × 12` 筆） | `r = 0` 時退化為線性累加 |
+| PRD-02 | 目標金額折現 | **期初年金**，第一期對應退休當年 `A_r`，共 `A_d − A_r + 1` 年；**支出端**通膨基準鎖現齡 `A_c` | `A_d ≤ A_r` 於表單層攔截 |
+| PRD-03 | 提領餘額軌跡 | 期初扣款，索引與 PRD-02 對齊 | **禁止 `Math.max(0, ...)` 截斷真實餘額** |
+| PRD-04 | 輸入校驗 | 年齡為正整數且 `A_c < A_r < A_d`；金額非負 | **禁止靜默補零或整筆丟棄**，須回傳明確錯誤 |
+| PRD-05 | 大筆支出區間 | 僅 `A_r ≤ A_e ≤ A_d` 計入；**輸入金額視為今日幣值，通膨基準鎖 `A_c`**，即第 `A_e` 年的名目額為 `金額 × (1+i)^(A_e − A_c)` | 超出壽命者兩條路徑皆排除，介面標註已忽略 |
+| PRD-06 | 勞保年金 | `t ≥ A_p` 時計入，隨通膨調增 | 未達請領年齡為 0 |
+| PRD-07 | 勞退月領 | 同 PRD-06 | 同 PRD-06 |
+| PRD-08 | 固定年支出 | 與月支出合併，共用同一組通膨指數（鎖 `A_c`） | — |
+| PRD-09 | 淨支出下限 | `max(0, 支出 − 收入)`，盈餘不滾存 | 保守假設，已知並接受 |
+| PRD-10 | 收入指數化 | 退休後收入全額隨通膨調增。**勞保年金、勞退月領的輸入值視為請領當年的名目金額，通膨基準鎖該項自己的請領年齡 `A_p`**，即第 `t` 年為 `月額 × 12 × (1+i)^(t − A_p)`；**其他收入（租金、股利）視為今日幣值，鎖 `A_c`** | 與法規階梯式調整有落差，已標註 |
+| PRD-11 | 幣值標示 | **凡輸入欄位的幣值基準年不是「今天」，介面必須標示。** 月支出、固定年支出、大筆支出、其他收入標「以現在幣值估算」；勞保年金、勞退月領標「請領當年金額，勞保局試算結果可直接填入」 | 新增條款 |
+
+---
+
+## 介面契約
+
+實作必須是一個可 import 的 Python 模組，公開以下三個 dataclass 與一個函式。
+**欄位名稱、順序、型別、預設值不得更動。**
+
+```python
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class LumpSum:
+    age: int          # A_e，大筆支出發生年齡
+    amount: float     # 今日幣值金額
+
+
+@dataclass(frozen=True)
+class Params:
+    current_age: int                      # A_c
+    retirement_age: int                   # A_r
+    life_expectancy: int                  # A_d
+    current_savings: float                # 期初本金
+    monthly_investment: float             # 月存金額
+    monthly_expense_today: float          # 退休後每月花費（今日幣值）
+    annual_recurring_expense: float = 0.0 # 固定年支出（今日幣值）
+
+    labor_insurance_pension: float = 0.0  # 勞保老年年金，月額
+    labor_insurance_start_age: int = 0    # 勞保請領年齡 A_p
+    labor_pension_monthly: float = 0.0    # 勞退月領，月額
+    labor_pension_start_age: int = 0      # 勞退請領年齡 A_p
+    other_income: float = 0.0             # 其他收入，月額
+
+    pre_retirement_return: float = 0.08   # r
+    post_retirement_return: float = 0.04  # r_p
+    inflation_rate: float = 0.02          # i
+    lump_sums: tuple[LumpSum, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class Result:
+    projected_savings: float              # 退休當下的累積資產
+    target_fund: float                    # 退休當下所需的目標金額
+    retirement_gap: float                 # target_fund - projected_savings
+    balances_raw: tuple[float, ...]       # 逐年真實餘額
+    balances_charted: tuple[float, ...]   # 供圖表使用的逐年餘額
+```
