@@ -32,6 +32,9 @@
 | Day 13 | [我刪掉一條規格，沒有人偷偷把它加回來](https://ithelp.ithome.com.tw/articles/10409818) | [`day13`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day13) | `generated/2026-09-11-spec-mutation/`：三臂突變 PRD、`del` 臂十份輸出、preflight 與 `manifest.yaml` |
 | Day 14 | [十三條測試全綠，殺得掉的只有「乘以 −1」](https://ithelp.ithome.com.tw/articles/10410618) | [`day14`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day14) | `spec/PRD-v1.1.md`（三缺口裁決 + PRD-11）；`tools/test_mutator.py`（21 個變異體，M/N 分群）；`tools/prd_cost.py`（KAT 釘住 v1.0 已發表的六個數字） |
 | Day 15 | [424 條案例，只有一小撮值得寫成 pytest](https://ithelp.ithome.com.tw/articles/10411282) | [`day15`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day15) | `spec/PRD-v1.2.md`（新增 PRD-12 圖表餘額保真）；`tools/verify_fixed.py`（三道事前驗收器 + 四個分支算子）；`shadow/calc_fixed.py`（隔離環境生成，不覆蓋 `calc.py`）；`golden/golden_set_v2.json`（v1 不刪不覆寫）；`generated/2026-09-15-prd-to-impl/` 與 `-v2/` 兩輪實驗 |
+| Day 16 | [CI 全綠，但 AI 只寫了一句 assert result is not None](https://ithelp.ithome.com.tw/articles/10412225) | [`day16`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day16) | `tools/assert_inspector.py`（斷言八分類、判定以函式為單位、26 條 KAT）；`decisions.md` 新增閘門 3 門檻 `fidelity_ratio >= 0.8` 與量尺五個誤判的紀錄 |
+| Day 17 | [行覆蓋率 100%，還是有十一種錯法穿過去](https://ithelp.ithome.com.tw/articles/10412277) | [`day17`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day17) | `tools/coverage_probe.py`（`sys.settrace` 自數覆蓋率，分母可切換含不含 class 宣告，`_assert_all_ran()` 拒絕在測試沒跑完時印出比值） |
+| Day 18 | 誰來驗收驗收者——自建 Mutation Harness 與校準協議 | [`day18`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day18) | `tools/harness.py`（鏡射整棵樹置換、片段唯一性、依 pytest 回傳碼判定、`_assert_baseline()`）；`tools/calibration_mutants.py`（必死 2／必活 2／必錯 1，人手寫） |
 
 Day 1–5 沒有 tag，因為 repo 是 Day 6 才建立的——補打只會指到當天並不存在的狀態。
 **寧可留白，不要假的時間戳。**
