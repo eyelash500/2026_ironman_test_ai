@@ -184,11 +184,45 @@ def calibrate(project_root: str, naive: bool = False) -> int:
     return 0
 
 
+def run_domain(project_root: str) -> int:
+    """正式一輪：14 個領域變異體打在 calc_fixed 上，由 golden v2 套件應戰。
+
+    基底與套件的配對只有一種可能：領域變異體改的是 `shadow/calc_fixed.py`，
+    而 repo 裡唯一 import `calc_fixed` 的套件是 `tests/test_golden_v2.py`。
+    `tests/test_characterization.py` 對的是 legacy `calc.py`，這些變異體打不到它。
+    """
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from domain_mutants import DOMAIN_MUTANTS, EVIDENCE, REL_SOURCE, audit
+
+    if audit() != 0:
+        raise SystemExit("中止：目錄自檢未通過，不注入")
+
+    rel_tests = "tests/test_golden_v2.py"
+    _assert_baseline(project_root, rel_tests)
+    print(f"基準線：未變異時 {rel_tests} 全綠\n")
+
+    out = evaluate(project_root, REL_SOURCE, rel_tests, DOMAIN_MUTANTS)
+    for m in DOMAIN_MUTANTS:
+        v = out["results"][m.id].value
+        mark = {"killed": "✓ 殺掉", "survived": "✗ 存活",
+                "timeout": "✓ 逾時", "error": "! 無效"}[v]
+        print(f"  {mark}　{m.id}　{EVIDENCE[m.id]}")
+
+    score = out["score"]
+    print(f"\n殺掉 {out['killed']} / 計分 {out['scored']}"
+          f"（總數 {len(DOMAIN_MUTANTS)}、ERROR {out['error']}、等價 {out['equivalent']}）")
+    print(f"變異分數 = {score:.1f}%" if score is not None else "變異分數：無法計算")
+    print("\n存活的每一個都要人工驗屍：真漏洞，還是等價變異體？工具不猜。")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    if "--calibrate" not in argv:
-        raise SystemExit("用法：harness.py --calibrate [--naive]")
-    return calibrate(root, naive="--naive" in argv)
+    if "--calibrate" in argv:
+        return calibrate(root, naive="--naive" in argv)
+    if "--domain" in argv:
+        return run_domain(root)
+    raise SystemExit("用法：harness.py --calibrate [--naive] ｜ --domain")
 
 
 if __name__ == "__main__":

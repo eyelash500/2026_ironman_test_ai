@@ -1,0 +1,59 @@
+; 第一次變異分數量測。本檔在跑之前寫完。
+; 跑完只准往 execution_status 補記，不准改 plan、pairing 與 expectations。
+
+experiment:
+  id: 2026-09-18-first-mutation-score
+  day: 20
+  question: >
+    14 個人工設計的領域變異體注進 calc_fixed，
+    由 golden v2 套件應戰，殺得掉幾個？
+
+pairing:
+  base: shadow/calc_fixed.py          ; PRD v1.2 的實作
+  suite: tests/test_golden_v2.py      ; 23 組案例，21 組鎖數值、2 組要求拋 ValueError
+  mutants: tools/domain_mutants.py    ; 14 個，實證 8、推測 6
+  engine: tools/harness.py --domain
+  note: >
+    大綱原寫「對 tests/test_characterization.py 量測」——那是錯的。
+    characterization 套件 import 的是 legacy shadow/calc.py，
+    領域變異體改的是 calc_fixed.py，打不到它。
+    repo 裡唯一 import calc_fixed 的套件就是 test_golden_v2.py，
+    所以配對只有一種可能。此更正在跑之前寫下。
+
+precondition:
+  - 目錄自檢通過：片段唯一性 14/14、變異後語法 14/14、證據等級齊備
+  - 基準線全綠：未變異時 test_golden_v2.py 必須 pass（harness 的 _assert_baseline）
+  - 沒有 pytest 的環境會讓 14 個全回 ERROR，分母為零、分數無法計算 —— 那不是結果
+
+scoring:
+  formula: 殺掉 ÷ (總數 − 等價 − ERROR) × 100%
+  equivalent: 由人工判定後才標記，harness 不猜
+  timeout: 視為殺掉，但另記
+
+expectations:                          ; 跑之前寫下的猜測
+  note: 猜對要自問有沒有在設計變異體時偏向好殺的；猜錯才是資料
+  overall: >
+    偏高。golden v2 有 21 組鎖死到 rel_tol 1e-12 的數值斷言，
+    任何全域倍數或指數偏移都會當場紅。
+  likely_killed: >
+    M01（折現指數 +1）、M03（有效月利率）、M05（移除截斷）、
+    M10（通膨基準年 −1）、M13（大筆支出不計通膨）、M14（收入不抗通膨）——
+    這六個都會改變基準情境的金額。
+  likely_survived: >
+    M07（大筆支出 >=）、M11（提領首年報酬率）、M12（起領年齡 >）——
+    邊界類，只有恰好踩到那個年齡的 case 才會紅，而 23 組是點不是面。
+    M02（餘額夾 0）取決於套件有沒有比對 balances_raw 的逐項值。
+  likely_error_or_equivalent: >
+    M06 改動迴圈上界，若某些 case 沒有 lump_sums，變異後行為與原本相同 → 可能是等價變異體。
+    M08／M09 拿掉校驗，對 21 組合法輸入無影響，只有那 2 組非法輸入會抓到。
+  third_case: >
+    最可能也最有教學價值的結果：分數不低，但存活的剛好全是邊界類。
+    那會證明「分數的組成比分數本身重要」。
+
+execution_status:
+  state: 待執行
+  date:
+  runner: 待記錄                       ; 誰的機器、python 版本、pytest 版本
+  results:
+  score:
+  autopsy:                             ; 存活的逐一驗屍：真漏洞 or 等價
