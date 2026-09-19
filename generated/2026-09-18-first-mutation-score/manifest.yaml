@@ -51,9 +51,55 @@ expectations:                          ; 跑之前寫下的猜測
     那會證明「分數的組成比分數本身重要」。
 
 execution_status:
-  state: 待執行
-  date:
-  runner: 待記錄                       ; 誰的機器、python 版本、pytest 版本
+  state: 已執行
+  date: 2026-09-19
+  runner: 作者本機（Python 3.14.5、pytest 9.1.1、repo venv/）
+
   results:
-  score:
-  autopsy:                             ; 存活的逐一驗屍：真漏洞 or 等價
+    killed: [M01, M02, M03, M04, M05, M06, M07, M08, M10, M11, M12, M13]
+    survived: [M09, M14]
+    error: []
+    equivalent: []
+  score: 85.7                          ; 12 / 14
+
+  autopsy:
+    M09:
+      verdict: 真漏洞，非等價
+      cause: >
+        23 組案例裡**沒有一組含負值輸入**。兩組「預期被拒」的
+        （def_b_inverted、def_b_equal）都是年齡順序違規，不是金額違規。
+        移除金額負值校驗這件事，這套測試從頭到尾沒有機會發現。
+      line_executed: true              ; 第 84 行執行了 23 次，但條件恆為 False
+    M14:
+      verdict: 真漏洞，非等價
+      cause: >
+        23 組的 other_income **全部為 0**。
+        `0 * 12 * (1+i)^k` 與 `0 * 12` 恆等，拿掉通膨指數化沒有任何一組會變。
+      line_executed: true              ; 第 129 行執行了，但乘數為 0
+
+  key_finding: >
+    兩個存活的都不是「斷言不夠嚴」，是「案例沒餵那個輸入」，
+    而且兩行程式碼**都被執行過**。這是 Day 17「行被執行過不等於邏輯被檢驗過」
+    的實證——當時只能推論，現在有兩個具名的變異體站在那裡。
+
+  input_space_gaps:                    ; 順手掃出來的，golden v2 的輸入涵蓋
+    other_income: 0 / 23
+    annual_recurring_expense: 0 / 23   ; PRD-08，Day 14 列的待補測試之一，至今仍空
+    labor_pension_monthly: 1 / 23
+    labor_insurance_pension: 4 / 23
+    lump_sums: 6 / 23
+
+  expectations_vs_result:
+    猜錯: >
+      預期存活的 M07、M11、M12（邊界類）全部被殺。
+      原因推測：23 組裡有 6 組帶 lump_sums、4 組帶勞保，
+      這些邊界剛好被踩到了——「23 組是點不是面」這個說法對，
+      但那些點的位置比我以為的準。
+    猜對一半: M09 我列在「可能無效或等價」，方向對，但理由不同（我猜等價，實際是輸入沒覆蓋）
+    完全沒猜到: M14。我把它歸在 likely_killed，因為沒去看 other_income 的實際值
+    第三種情境: 未發生。存活的不是邊界類，是輸入空間沒覆蓋到的兩個欄位
+
+  not_amended: >
+    不回頭補 golden set。存活的變異體是產出不是故障，
+    現在補案例會讓分數變 100%，而那個 100% 是調出來的不是量出來的。
+    補洞與「補完之後分數變多少」另立實驗編號。
