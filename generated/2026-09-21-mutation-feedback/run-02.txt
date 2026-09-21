@@ -1,0 +1,104 @@
+import sys
+from pathlib import Path
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "shadow"))
+
+from calc_fixed import Params, LumpSum, calculate
+
+
+def test_negative_insurance_start_age():
+    # 測試勞保請領年齡為負數
+    with pytest.raises(ValueError, match="請領年齡不得為負數"):
+        calculate(Params(
+            current_age=30, retirement_age=60, life_expectancy=80,
+            current_savings=0, monthly_investment=0, monthly_expense_today=0,
+            labor_insurance_start_age=-1
+        ))
+
+    # 測試勞退請領年齡為負數
+    with pytest.raises(ValueError, match="請領年齡不得為負數"):
+        calculate(Params(
+            current_age=30, retirement_age=60, life_expectancy=80,
+            current_savings=0, monthly_investment=0, monthly_expense_today=0,
+            labor_pension_start_age=-1
+        ))
+
+
+@pytest.mark.parametrize("field_name", [
+    "current_savings",
+    "monthly_investment",
+    "monthly_expense_today",
+    "annual_recurring_expense",
+    "labor_insurance_pension",
+    "labor_pension_monthly",
+    "other_income"
+])
+def test_negative_amount(field_name):
+    # 測試各個金額欄位為負數的情況
+    kwargs = {
+        "current_age": 30, "retirement_age": 60, "life_expectancy": 80,
+        "current_savings": 0, "monthly_investment": 0, "monthly_expense_today": 0
+    }
+    kwargs[field_name] = -100.0
+    with pytest.raises(ValueError, match="金額不得為負數"):
+        calculate(Params(**kwargs))
+
+
+def test_negative_lumpsum_age():
+    # 測試大筆支出年齡為負數
+    with pytest.raises(ValueError, match="大筆支出年齡不得為負數"):
+        calculate(Params(
+            current_age=30, retirement_age=60, life_expectancy=80,
+            current_savings=0, monthly_investment=0, monthly_expense_today=0,
+            lump_sums=(LumpSum(age=-5, amount=1000),)
+        ))
+
+
+def test_negative_lumpsum_amount():
+    # 測試大筆支出金額為負數
+    with pytest.raises(ValueError, match="大筆支出金額不得為負數"):
+        calculate(Params(
+            current_age=30, retirement_age=60, life_expectancy=80,
+            current_savings=0, monthly_investment=0, monthly_expense_today=0,
+            lump_sums=(LumpSum(age=65, amount=-1000),)
+        ))
+
+
+def test_other_income_calculation():
+    # 測試 total_income += p.other_income * 12 * ((1.0 + p.inflation_rate) ** (t - p.current_age))
+    # 若 other_income 被正確計算，其折現與通膨邏輯和 monthly_expense_today 是對稱的。
+    # 只要不觸及 net_expense 的下限 0，設定 other_income 等同於減去等額的 monthly_expense_today。
+
+    p_baseline = Params(
+        current_age=50, retirement_age=60, life_expectancy=70,
+        current_savings=0, monthly_investment=0, monthly_expense_today=5000,
+        other_income=0,
+        inflation_rate=0.03, post_retirement_return=0.05
+    )
+    
+    p_with_income = Params(
+        current_age=50, retirement_age=60, life_expectancy=70,
+        current_savings=0, monthly_investment=0, monthly_expense_today=5000,
+        other_income=1000,
+        inflation_rate=0.03, post_retirement_return=0.05
+    )
+    
+    p_equivalent = Params(
+        current_age=50, retirement_age=60, life_expectancy=70,
+        current_savings=0, monthly_investment=0, monthly_expense_today=4000,
+        other_income=0,
+        inflation_rate=0.03, post_retirement_return=0.05
+    )
+    
+    r_baseline = calculate(p_baseline)
+    r_with_income = calculate(p_with_income)
+    r_equivalent = calculate(p_equivalent)
+    
+    # 確保 other_income 確實降低了 target_fund
+    assert r_with_income.target_fund < r_baseline.target_fund
+    
+    # 確保計算行為完美吻合對應等式，若乘數 (12) 或通膨基準出錯將會失敗
+    assert r_with_income.target_fund == pytest.approx(r_equivalent.target_fund, rel=1e-12)
+    assert r_with_income.balances_raw == pytest.approx(r_equivalent.balances_raw, rel=1e-12)

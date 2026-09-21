@@ -85,9 +85,13 @@ def apply_mutant(project_root: str, rel_source: str, m: Mutant, workdir: str,
     return root_copy
 
 
-def run_tests(root_copy: str, rel_tests: str, project_root: str,
+def run_tests(root_copy: str, rel_tests, project_root: str,
               timeout_sec: float = 30.0, naive: bool = False) -> Verdict:
-    """在副本裡執行測試，讓測試檔自己的 ROOT 解析到副本。"""
+    """在副本裡執行測試，讓測試檔自己的 ROOT 解析到副本。
+
+    `rel_tests` 可以是單一路徑，也可以是路徑列表——
+    要量「補了測試之後分數變多少」，就得讓兩個檔案一起應戰。
+    """
     cwd = root_copy
     env = os.environ.copy()
     if naive:
@@ -95,7 +99,8 @@ def run_tests(root_copy: str, rel_tests: str, project_root: str,
         cwd = project_root
         env["PYTHONPATH"] = f"{root_copy}:{env.get('PYTHONPATH', '')}".rstrip(":")
 
-    cmd = [sys.executable, "-m", "pytest", rel_tests, "-q", "-p", "no:cacheprovider"]
+    paths = [rel_tests] if isinstance(rel_tests, str) else list(rel_tests)
+    cmd = [sys.executable, "-m", "pytest", *paths, "-q", "-p", "no:cacheprovider"]
     try:
         proc = subprocess.run(cmd, cwd=cwd, env=env, timeout=timeout_sec,
                               capture_output=True, text=True)
@@ -131,7 +136,7 @@ def evaluate(project_root: str, rel_source: str, rel_tests: str,
     }
 
 
-def _assert_baseline(project_root: str, rel_tests: str) -> None:
+def _assert_baseline(project_root: str, rel_tests) -> None:
     """跑變異之前先證明「跑得到測試，而且未變異時是全綠的」。
 
     沒有這一條，一個沒裝 pytest 的環境會讓五條校準全部回 ERROR——
@@ -139,8 +144,9 @@ def _assert_baseline(project_root: str, rel_tests: str) -> None:
     Day 14 的 `_assert_baseline()` 與 Day 17 的 `_assert_all_ran()` 同源：
     工具在什麼都沒做的時候必須閉嘴，而不是報出一個看起來合理的結論。
     """
+    paths = [rel_tests] if isinstance(rel_tests, str) else list(rel_tests)
     proc = subprocess.run(
-        [sys.executable, "-m", "pytest", rel_tests, "-q", "-p", "no:cacheprovider"],
+        [sys.executable, "-m", "pytest", *paths, "-q", "-p", "no:cacheprovider"],
         cwd=project_root, capture_output=True, text=True,
     )
     if proc.returncode == 0:
@@ -184,7 +190,7 @@ def calibrate(project_root: str, naive: bool = False) -> int:
     return 0
 
 
-def run_domain(project_root: str) -> int:
+def run_domain(project_root: str, extra_tests: list[str] | None = None) -> int:
     """正式一輪：14 個領域變異體打在 calc_fixed 上，由 golden v2 套件應戰。
 
     基底與套件的配對只有一種可能：領域變異體改的是 `shadow/calc_fixed.py`，
@@ -197,9 +203,9 @@ def run_domain(project_root: str) -> int:
     if audit() != 0:
         raise SystemExit("中止：目錄自檢未通過，不注入")
 
-    rel_tests = "tests/test_golden_v2.py"
+    rel_tests = ["tests/test_golden_v2.py"] + list(extra_tests or [])
     _assert_baseline(project_root, rel_tests)
-    print(f"基準線：未變異時 {rel_tests} 全綠\n")
+    print(f"基準線：未變異時 {' + '.join(rel_tests)} 全綠\n")
 
     out = evaluate(project_root, REL_SOURCE, rel_tests, DOMAIN_MUTANTS)
     for m in DOMAIN_MUTANTS:
@@ -221,8 +227,13 @@ def main(argv: list[str]) -> int:
     if "--calibrate" in argv:
         return calibrate(root, naive="--naive" in argv)
     if "--domain" in argv:
-        return run_domain(root)
-    raise SystemExit("用法：harness.py --calibrate [--naive] ｜ --domain")
+        i = argv.index("--domain")
+        extra = [a for a in argv[i + 1:] if not a.startswith("--")]
+        return run_domain(root, extra)
+    raise SystemExit(
+        "用法：harness.py --calibrate [--naive]\n"
+        "  ｜ harness.py --domain [額外的測試檔 ...]\n"
+        "例：harness.py --domain tests/test_feedback.py")
 
 
 if __name__ == "__main__":

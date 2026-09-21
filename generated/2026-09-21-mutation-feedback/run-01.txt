@@ -1,0 +1,97 @@
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "shadow"))
+
+from calc_fixed import LumpSum, Params, calculate
+
+
+@pytest.mark.parametrize("field_name", [
+    "labor_insurance_start_age",
+    "labor_pension_start_age"
+])
+def test_negative_start_age(field_name):
+    kwargs = {
+        "current_age": 30,
+        "retirement_age": 60,
+        "life_expectancy": 90,
+        "current_savings": 0,
+        "monthly_investment": 0,
+        "monthly_expense_today": 0,
+    }
+    kwargs[field_name] = -1
+    p = Params(**kwargs)
+    with pytest.raises(ValueError, match="請領年齡不得為負數"):
+        calculate(p)
+
+
+@pytest.mark.parametrize("field_name", [
+    "current_savings",
+    "monthly_investment",
+    "monthly_expense_today",
+    "annual_recurring_expense",
+    "labor_insurance_pension",
+    "labor_pension_monthly",
+    "other_income"
+])
+def test_negative_amounts(field_name):
+    kwargs = {
+        "current_age": 30,
+        "retirement_age": 60,
+        "life_expectancy": 90,
+        "current_savings": 0,
+        "monthly_investment": 0,
+        "monthly_expense_today": 0,
+    }
+    kwargs[field_name] = -1.0
+    p = Params(**kwargs)
+    with pytest.raises(ValueError, match="金額不得為負數"):
+        calculate(p)
+
+
+def test_lump_sum_negative_age():
+    p = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=90,
+        current_savings=0,
+        monthly_investment=0,
+        monthly_expense_today=0,
+        lump_sums=(LumpSum(age=-1, amount=100.0),)
+    )
+    with pytest.raises(ValueError, match="大筆支出年齡不得為負數"):
+        calculate(p)
+
+
+def test_lump_sum_negative_amount():
+    p = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=90,
+        current_savings=0,
+        monthly_investment=0,
+        monthly_expense_today=0,
+        lump_sums=(LumpSum(age=50, amount=-100.0),)
+    )
+    with pytest.raises(ValueError, match="大筆支出金額不得為負數"):
+        calculate(p)
+
+
+def test_other_income_impact():
+    p = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=90,
+        current_savings=0.0,
+        monthly_investment=0.0,
+        monthly_expense_today=2000.0,
+        other_income=2000.0,
+        inflation_rate=0.03,
+        pre_retirement_return=0.08,
+        post_retirement_return=0.04
+    )
+    res = calculate(p)
+    assert res.target_fund == 0.0

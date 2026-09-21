@@ -1,0 +1,227 @@
+; 變異反饋實驗：把沒被覆蓋的路徑餵回 AI，要求補測試。
+; 本檔在跑之前寫完。跑完只准往 execution_status 補記，不准改 plan 與 pass_criteria。
+
+experiment:
+  id: 2026-09-21-mutation-feedback
+  day: 21
+  question: >
+    告訴 AI「這兩行程式碼從來沒被觸發過」並附上行號與原始碼，
+    但不告訴它怎麼觸發——它補得出能殺掉 M09 與 M14 的測試嗎？
+
+background:
+  前一輪: 2026-09-18-first-mutation-score（變異分數 85.7%，M09 與 M14 存活）
+  兩個存活的成因: >
+    不是斷言太鬆，是案例沒餵那個輸入。
+    M09：23 組沒有一組含負值金額，第 85 行的 raise 從來沒跑到。
+    M14：23 組的 other_income 全為 0，通膨那一項乘出來恆為 0。
+
+plan:
+  feedback_level: 中檔
+  給: 受測原始碼全文、現有測試套件全文、兩行的行號與原始碼
+  不給: >
+    - 變異測試的存在（不提 mutant、變異、分數、存活）
+    - 「怎麼觸發」的任何提示（不提負數、不提 other_income 要設非零）
+    - M09／M14 的變異內容
+    理由：它上次的盲區正是「沒去確認那兩組非法輸入是哪一種」。
+    給了行號還是得自己想出要餵什麼，這一步才是要量的東西。
+
+  runs: 3                              ; 同一個 prompt、三個乾淨 session
+  control: 取消                        ; 原訂人工補強一份，作廢，理由見下
+  control_cancelled:
+    planned: >
+      由作者自己寫一份 control-human.py，不經 AI，
+      用來回答「人補的跟 AI 補的差在哪」。
+      前提是**必須在讀過 AI 產物之前寫完**。
+    what_happened: >
+      三輪產出後，助手在確認對照組是否已撰寫之前，
+      就把三份產物整份印在對話裡，作者全部看過。
+      獨立性當場消失。
+    ruling: >
+      本輪不做對照組。一個被汙染的對照組比沒有對照組更糟——
+      它看起來像證據。
+      若日後要補，那會是另一個問題（「人看完 AI 的版本後會補上什麼」），
+      另立實驗編號，不併入本輪。
+    attribution: 助手的流程疏失，不是作者的
+  model:
+    name: Gemini 3.1 Pro Preview       ; 與 2026-09-15-prd-to-impl-v2 同一組
+    id: gemini-3.1-pro-preview
+    temperature: 1
+    thinking_level: High
+    tools: 六個全關
+    rationale: >
+      本輪的自變數是「反饋」，模型必須固定。
+      沿用產 calc_fixed.py 那一輪的同一組設定，
+      結果才歸屬得到反饋，不歸屬到換模型。
+      temperature = 1 表示三次產出本來就會不同——
+      那不是雜訊，正是要看的東西：同一份反饋，它有沒有穩定補到同一個洞。
+    當天要現場確認: 版本字串是否仍為 gemini-3.1-pro-preview（模型會改版）
+
+  anti_cheating:                       ; 寫進 prompt 的硬約束
+    - 不得修改 shadow/calc_fixed.py
+    - 不得修改或新增 golden/golden_set_v2.json 的任何案例
+    - 不得修改 tests/test_golden_v2.py
+    - 新測試寫在獨立檔案 tests/test_feedback.py
+    理由: >
+      不擋這三條，最省力的「通過」方式是去改期望值或改受測物。
+      那樣測試會全綠，而盲區原封不動。
+
+  leak_scan:                           ; 雙向掃描，2026-09-21 於 _paste/paste.txt
+    must_not: >
+      21 個關鍵詞（變異／mutant／mutation／harness／存活／殺掉／分數／盲區／
+      M09／M14／餵負／設為負／other_income 設／本系列／鐵人⋯⋯）。
+      命中 2 項，皆判為可接受：
+      - `amounts`（第 114、123 行）：受測原始碼的區域變數，必須看得到。
+        它收了哪幾個欄位要往上讀幾行才知道，那正是本次要量的東西。
+      - `PRD-xx`（4 處註解）：透露有一份編號規格存在，
+        但沒有透露第 85 行要怎麼觸發。
+    must_have: >
+      14 項全在：五個行號、四條硬約束、tests/test_feedback.py、
+      class Params、def calculate 簽名、test_golden_v2_case、pytest.skip、
+      「能在對應的程式碼被改壞時失敗」。
+      （Day 15 第一輪只掃「不該有的在不在」，漏掉函式簽名被刪，
+      導致產物的進入點取錯名字。這次雙向。）
+
+  isolation:
+    - 全新對話，無記憶、無個人化
+    - 不得開啟檔案存取、程式執行、網頁搜尋
+    - 跑之前先問模型「你現在能用哪些工具」，逐字存成 preflight.txt
+
+pass_criteria:                         ; 每一份產物都要依序過這三關
+  gate_a_inspector:
+    rule: tools/assert_inspector.py 掃過，忠實性 >= 0.8、無 EMPTY、無 VACUUM_ONLY
+    rationale: 過不了這一關的腳本不進 harness（Day 16 立的門）
+  gate_b_baseline:
+    rule: 未變異的 calc_fixed 上，新測試必須全綠
+    rationale: 基準線紅的，變異結果沒有意義
+  gate_c_kill:
+    rule: >
+      把 tests/test_golden_v2.py 與 tests/test_feedback.py 一起交給 harness，
+      重跑全部 14 個領域變異體。
+    primary: M09 與 M14 是否被殺
+    secondary: >
+      另外 12 個必須維持被殺。補測試若讓任何一個從 killed 變 survived，
+      代表新測試干擾了既有覆蓋，要查。
+
+measurement:
+  before: 85.7%（12 / 14）
+  after: 待實測
+  note: >
+    重點不是 after 這個數字，是「補了之後動了哪幾格」。
+    分數從 85.7 變 100 只代表那兩個被補到，不代表測試變好了——
+    盲區補的是已知的兩個洞，不是未知的那一類。
+
+expectations:                          ; 跑之前寫下的猜測
+  note: >
+    上一輪的預期十四題只對六題，而且錯在「只看變異體不看案例」。
+    這次刻意換一種寫法：先想「AI 手上有什麼資訊」，再想它會怎麼用。
+  M14: >
+    三次都會補到。第 129 行 `p.other_income * 12 * (...)` 一眼就看得出
+    other_income 是唯一的變因，把它設成非零即可，不需要任何領域知識。
+  M09: >
+    比較難說。第 85 行是 `raise ValueError("金額不得為負數")`，
+    字面已經寫了「金額」與「負數」，照理說很難錯。
+    風險在它可能寫成「負的年齡」或「負的報酬率」——
+    `amounts` 這個變數收了哪幾個欄位，要往上讀幾行才知道。
+  gate_a: 三份都會過。Day 16 的門檻對「照著行號補測試」這種任務不算嚴。
+  人工對照組: >
+    預期作者會在十分鐘內補完，而且會順手多補 annual_recurring_expense
+    （0 / 23 那一列）——AI 不會，因為反饋裡沒提它。
+    若 AI 真的補了，要回頭查反饋有沒有洩漏。
+
+preflight_record:
+  screenshot:
+    file: preflight.png
+    shows: >
+      Gemini 3.1 Pro Preview／gemini-3.1-pro-preview、temperature 1、
+      Thinking level High、System instructions 空、Output length 65536，
+      六個工具開關（Structured outputs／Code execution／Function calling／
+      Grounding with Google Search／Grounding with Google Maps／URL context）全部關閉。
+    coverage: >
+      **只截一張，涵蓋三輪。** 作者確認三輪設定完全相同、中途未調整。
+      這一點是作者口述，不是逐輪存證——證據等級低於「三輪各一張」。
+      日後若要重現，這是本輪最弱的一環。
+  self_report:
+    file: preflight-discard.txt
+    source: 另開的丟棄用對話，不是正式對話
+    verdict: 輔助證據，不可單獨當隔離依據
+    detail: >
+      模型自述具備網路搜尋、程式碼執行、視覺辨識、文件處理、
+      Google 擴充功能、圖片生成六類能力——而截圖顯示對應開關全是關的。
+      兩者不衝突：自述講的是產品有哪些功能，截圖講的是這個 session 開了哪些。
+      這是 Day 15 修正過的證據層級的又一次實證。
+      **其中 Code execution 對本輪特別關鍵**：若模型真能執行程式碼，
+      它就能自己跑測試、看結果、反覆修改，那量到的會是「試幾次會中」，
+      不是「想不想得到要餵負的金額」。截圖證明它不能。
+  procedure:
+    - 另開丟棄用對話問「你現在能用哪些工具」，存 preflight-discard.txt
+    - 正式對話全新開啟，只貼 _paste/paste.txt，不加任何補充
+    - 三輪各開新對話
+    note: >
+      prompt.md 初版誤寫成「同一個對話先問工具再貼」，
+      那會讓那段問答進入上下文。依 Day 11-番外 立的做法更正為另開丟棄用對話，
+      作者實際執行的也是更正後的流程。
+
+execution_status:
+  state: 已執行
+  date: 2026-09-21
+  runner: 作者本機（Python 3.14.5、pytest 9.1.1）
+
+  gate_a_inspector:                    ; 三份全過
+    run-01: 忠實性 100%（strict 1、contract 4），5 條測試函式
+    run-02: 忠實性 100%（strict 2、contract 5、relational 1），5 條
+    run-03: 忠實性 100%（strict 1、contract 5），6 條
+    note: >
+      忠實性 100% 但組成偏斜：補的幾乎都是 contract（pytest.raises），
+      真正在比數字的只有 other_income 那一條。
+      「非法輸入要拋錯」最容易寫，也最容易殺掉 M09。
+
+  gate_b_baseline:
+    run-01: 通過（12 條全過）
+    run-02: 通過（11 條全過）
+    run-03: >
+      **不通過**（11 過 1 敗）。
+      test_other_income_impact_on_result_with_inflation 設定
+      retirement_age=65、life_expectancy=65，違反 PRD-04 的 A_r < A_d，
+      calculate() 拋 ValueError，而該測試期待回傳 Result。
+      它為了讓「只有一年提領期」的手算值 6300.0 成立而壓縮年齡區間，
+      壓成了非法輸入——**那正是 golden set 裡 def_b_equal 被拒的那一組**。
+      諷刺處：同一個檔案上面才剛寫完四條「非法輸入要拋錯」的測試。
+      依驗收順序，run-03 不進關 C。不代改、不補跑。
+
+  gate_c_mutation:
+    run-01: 14 / 14 殺掉，變異分數 100.0%（ERROR 0、等價 0）
+    run-02: 14 / 14 殺掉，變異分數 100.0%（ERROR 0、等價 0）
+    before: 85.7%（12 / 14）
+    after: 100.0%
+    delta: +14.3 個百分點；M09 與 M14 雙雙被殺
+
+  key_finding: >
+    **分數滿分，而輸入空間的五個缺口只補掉了被點名的那一個。**
+    反饋點名了第 129 行，other_income 就補了（新測試給正值 1 次）；
+    annual_recurring_expense 沒被點名，補完之後仍然是 0——
+    而它在 Day 20 就掃出是 0 / 23，更早在 Day 14 就列為待補測試之一。
+    反饋給多少，它補多少，一分不多。
+
+  expectations_vs_result:
+    M14: 猜中。三份都補到了，而且如預期「一眼看得出 other_income 是唯一變因」
+    M09: >
+      猜錯，而且是往好的方向錯。我事前擔心它會寫成負的年齡或負的報酬率，
+      三份全部用 parametrize 把七個金額欄位一次掃完，沒有一份搞錯。
+      `amounts` 收了哪些欄位要往上讀幾行——它們都讀了。
+    gate_a: 猜中，三份都過
+    人工對照組: >
+      預期「作者會順手多補 annual_recurring_expense，AI 不會」。
+      對照組因流程疏失取消（見 control_cancelled），這一半無法驗證；
+      但 AI 那一半應驗了：三份都沒補。
+      預期裡還寫著「若 AI 真的補了，要回頭查反饋有沒有洩漏」——
+      沒補，所以反饋是乾淨的。
+
+  not_amended: >
+    run-03 的失敗不代改。100% 這個數字不往上解讀為「測試變好了」，
+    它只代表目錄裡那 14 個都被守住了。目錄沒長大。
+  date:
+  runner:
+  runs:
+  control:
+  after_score:
+  notes:

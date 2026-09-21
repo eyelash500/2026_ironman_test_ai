@@ -1,0 +1,87 @@
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "shadow"))
+
+from calc_fixed import LumpSum, Params, calculate
+
+
+def get_valid_params(**kwargs):
+    base = {
+        "current_age": 30,
+        "retirement_age": 60,
+        "life_expectancy": 80,
+        "current_savings": 1000.0,
+        "monthly_investment": 100.0,
+        "monthly_expense_today": 1000.0,
+    }
+    base.update(kwargs)
+    return Params(**base)
+
+
+def test_labor_insurance_start_age_negative():
+    p = get_valid_params(labor_insurance_start_age=-1)
+    with pytest.raises(ValueError, match="請領年齡不得為負數"):
+        calculate(p)
+
+
+def test_labor_pension_start_age_negative():
+    p = get_valid_params(labor_pension_start_age=-1)
+    with pytest.raises(ValueError, match="請領年齡不得為負數"):
+        calculate(p)
+
+
+@pytest.mark.parametrize("field_name", [
+    "current_savings",
+    "monthly_investment",
+    "monthly_expense_today",
+    "annual_recurring_expense",
+    "labor_insurance_pension",
+    "labor_pension_monthly",
+    "other_income"
+])
+def test_amounts_cannot_be_negative(field_name):
+    kwargs = {field_name: -1.0}
+    p = get_valid_params(**kwargs)
+    with pytest.raises(ValueError, match="金額不得為負數"):
+        calculate(p)
+
+
+def test_lump_sum_age_cannot_be_negative():
+    p = get_valid_params(lump_sums=(LumpSum(age=-1, amount=1000.0),))
+    with pytest.raises(ValueError, match="大筆支出年齡不得為負數"):
+        calculate(p)
+
+
+def test_lump_sum_amount_cannot_be_negative():
+    p = get_valid_params(lump_sums=(LumpSum(age=70, amount=-1000.0),))
+    with pytest.raises(ValueError, match="大筆支出金額不得為負數"):
+        calculate(p)
+
+
+def test_other_income_impact_on_result_with_inflation():
+    """
+    測試 other_income 必須確實降低淨支出，並且反映通膨與乘 12 個月的行為。
+    """
+    p = Params(
+        current_age=64,
+        retirement_age=65,
+        life_expectancy=65,
+        current_savings=0.0,
+        monthly_investment=0.0,
+        monthly_expense_today=1000.0,
+        other_income=500.0,
+        inflation_rate=0.05,
+        post_retirement_return=0.0,
+    )
+    # 計算驗證：
+    # t = 65, (t - current_age) = 1
+    # total_expense = 1000 * 12 * (1.05^1) = 12600.0
+    # total_income = 500 * 12 * (1.05^1) = 6300.0
+    # net_exp = 12600.0 - 6300.0 = 6300.0
+    # 因為 post_retirement_return = 0.0，且只有一年，故 target_fund = 6300.0
+    result = calculate(p)
+    assert result.target_fund == pytest.approx(6300.0)
