@@ -37,7 +37,7 @@
 | Day 18 | [誰來驗收驗收者：自建 Mutation Harness 與校準協議](https://ithelp.ithome.com.tw/articles/10412894) | [`day18`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day18) | `tools/harness.py`（鏡射整棵樹置換、片段唯一性、依 pytest 回傳碼判定、`_assert_baseline()`）；`tools/calibration_mutants.py`（必死 2／必活 2／必錯 1，人手寫） |
 | Day 19 | [十四個變異體，八個有行號八個沒有](https://ithelp.ithome.com.tw/articles/10412938) | [`day19`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day19) | `tools/domain_mutants.py`（14 個領域變異體、逐項證據等級、`audit()` 自檢片段唯一性與變異後語法）；`tools/harness.py` 新增 `--domain` 正式模式 |
 | Day 20 | [第一個變異分數 85.7%，而扣分的兩個都不是斷言的錯](https://ithelp.ithome.com.tw/articles/10414074) | [`day20`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day20) | `generated/2026-09-18-first-mutation-score/manifest.yaml`：預期跑之前封存、逐項判定、兩個存活的驗屍、golden v2 輸入空間的五個缺口 |
-| Day 21 | 補完之後 100%，而那個從 Day 14 掛到現在的欄位還是 0 | [`day21`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day21) | `generated/2026-09-21-mutation-feedback/`：反饋提示詞、雙向洩漏掃描、三輪產物與 preflight；`tools/harness.py` 的 `--domain` 可接多個測試檔 |
+| Day 21 | [補完之後 100%，而那個從 Day 14 掛到現在的欄位還是 0](https://ithelp.ithome.com.tw/articles/10414576) | [`day21`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day21) | `generated/2026-09-21-mutation-feedback/`：反饋提示詞、雙向洩漏掃描、三輪產物與 preflight；`tools/harness.py` 的 `--domain` 可接多個測試檔 |
 
 Day 1–5 沒有 tag，因為 repo 是 Day 6 才建立的——補打只會指到當天並不存在的狀態。
 **寧可留白，不要假的時間戳。**
