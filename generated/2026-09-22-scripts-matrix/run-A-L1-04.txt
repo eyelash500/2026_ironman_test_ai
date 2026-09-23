@@ -1,0 +1,194 @@
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "shadow"))
+
+from calc_fixed import LumpSum, Params, Result, calculate  # noqa: E402
+
+
+def test_calculate_returns_expected_types():
+    params = Params(
+        current_age=30,
+        retirement_age=65,
+        life_expectancy=90,
+        current_savings=100000.0,
+        monthly_investment=10000.0,
+        monthly_expense_today=50000.0
+    )
+    result = calculate(params)
+    
+    assert isinstance(result, Result)
+    assert isinstance(result.projected_savings, float)
+    assert isinstance(result.target_fund, float)
+    assert isinstance(result.retirement_gap, float)
+    assert isinstance(result.balances_raw, tuple)
+    assert isinstance(result.balances_charted, tuple)
+
+
+def test_calculate_with_all_params_populated():
+    params = Params(
+        current_age=35,
+        retirement_age=60,
+        life_expectancy=85,
+        current_savings=500000.0,
+        monthly_investment=15000.0,
+        monthly_expense_today=60000.0,
+        annual_recurring_expense=120000.0,
+        labor_insurance_pension=21000.0,
+        labor_insurance_start_age=65,
+        labor_pension_monthly=15000.0,
+        labor_pension_start_age=60,
+        other_income=10000.0,
+        pre_retirement_return=0.07,
+        post_retirement_return=0.03,
+        inflation_rate=0.02,
+        lump_sums=(
+            LumpSum(age=45, amount=1000000.0),
+            LumpSum(age=70, amount=500000.0),
+        )
+    )
+    result = calculate(params)
+    
+    assert isinstance(result, Result)
+    assert len(result.balances_raw) > 0
+    assert len(result.balances_charted) > 0
+
+
+def test_higher_monthly_investment_increases_projected_savings():
+    base_params = Params(
+        current_age=30,
+        retirement_age=65,
+        life_expectancy=90,
+        current_savings=100000.0,
+        monthly_investment=10000.0,
+        monthly_expense_today=50000.0,
+        pre_retirement_return=0.05
+    )
+    high_invest_params = Params(
+        current_age=30,
+        retirement_age=65,
+        life_expectancy=90,
+        current_savings=100000.0,
+        monthly_investment=20000.0,  # 增加投資額
+        monthly_expense_today=50000.0,
+        pre_retirement_return=0.05
+    )
+    
+    res_base = calculate(base_params)
+    res_high = calculate(high_invest_params)
+    
+    assert res_high.projected_savings > res_base.projected_savings
+
+
+def test_higher_expenses_increases_target_fund():
+    base_params = Params(
+        current_age=30,
+        retirement_age=65,
+        life_expectancy=90,
+        current_savings=100000.0,
+        monthly_investment=10000.0,
+        monthly_expense_today=50000.0,
+    )
+    high_exp_params = Params(
+        current_age=30,
+        retirement_age=65,
+        life_expectancy=90,
+        current_savings=100000.0,
+        monthly_investment=10000.0,
+        monthly_expense_today=80000.0,  # 增加每月開銷
+    )
+    
+    res_base = calculate(base_params)
+    res_high = calculate(high_exp_params)
+    
+    assert res_high.target_fund > res_base.target_fund
+
+
+def test_pre_retirement_lump_sum_increases_projected_savings():
+    base_params = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=85,
+        current_savings=0.0,
+        monthly_investment=10000.0,
+        monthly_expense_today=50000.0,
+        pre_retirement_return=0.05
+    )
+    lump_params = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=85,
+        current_savings=0.0,
+        monthly_investment=10000.0,
+        monthly_expense_today=50000.0,
+        pre_retirement_return=0.05,
+        lump_sums=(LumpSum(age=40, amount=2000000.0),)  # 退休前有一筆大額收入
+    )
+    
+    res_base = calculate(base_params)
+    res_lump = calculate(lump_params)
+    
+    assert res_lump.projected_savings > res_base.projected_savings
+
+
+@pytest.mark.skip(reason="規格未定義：未明訂複利計算為期初或期末、通膨調整時機、以及未滿一年的月份處理方式，無法進行精確數值比對。")
+def test_exact_projected_savings_calculation():
+    params = Params(
+        current_age=30,
+        retirement_age=40,
+        life_expectancy=50,
+        current_savings=0.0,
+        monthly_investment=1000.0,
+        monthly_expense_today=0.0,
+        pre_retirement_return=0.0,
+        post_retirement_return=0.0,
+        inflation_rate=0.0
+    )
+    result = calculate(params)
+    # 若為簡單加總應為 10年 * 12月 * 1000 = 120000，但規格未釐清邊界條件
+    assert result.projected_savings == 120000.0
+
+
+@pytest.mark.skip(reason="規格未定義：retirement_gap 的正負號定義未明，可能為 target_fund - projected_savings 亦可能相反或包含其他調整。")
+def test_retirement_gap_formula():
+    params = Params(
+        current_age=30,
+        retirement_age=65,
+        life_expectancy=90,
+        current_savings=100000.0,
+        monthly_investment=10000.0,
+        monthly_expense_today=50000.0
+    )
+    result = calculate(params)
+    assert result.retirement_gap == result.target_fund - result.projected_savings
+
+
+@pytest.mark.skip(reason="規格未定義：balances_raw 與 balances_charted 的確切長度應為 (A_d - A_c) 或 (A_d - A_c + 1) 等。")
+def test_balances_array_length():
+    params = Params(
+        current_age=30,
+        retirement_age=65,
+        life_expectancy=90,
+        current_savings=0.0,
+        monthly_investment=0.0,
+        monthly_expense_today=0.0
+    )
+    result = calculate(params)
+    assert len(result.balances_raw) == (90 - 30 + 1)
+
+
+@pytest.mark.skip(reason="規格未定義：balances_charted 的縮放或折現邏輯(例如是否換算為實質購買力)未明。")
+def test_balances_charted_logic():
+    params = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=90,
+        current_savings=10000.0,
+        monthly_investment=1000.0,
+        monthly_expense_today=30000.0
+    )
+    result = calculate(params)
+    assert result.balances_charted != result.balances_raw

@@ -1,0 +1,355 @@
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "shadow"))
+
+from calc_fixed import LumpSum, Params, Result, calculate  # noqa: E402
+
+import math
+from dataclasses import replace
+
+
+# ==============================================================================
+# Fixtures & Test Helpers
+# ==============================================================================
+
+
+@pytest.fixture
+def base_params() -> Params:
+    """提供一組合理且常見的基準退休試算參數。"""
+    return Params(
+        current_age=30,
+        retirement_age=65,
+        life_expectancy=85,
+        current_savings=500_000.0,
+        monthly_investment=20_000.0,
+        monthly_expense_today=40_000.0,
+        annual_recurring_expense=0.0,
+        labor_insurance_pension=0.0,
+        labor_insurance_start_age=0,
+        labor_pension_monthly=0.0,
+        labor_pension_start_age=0,
+        other_income=0.0,
+        pre_retirement_return=0.08,
+        post_retirement_return=0.04,
+        inflation_rate=0.02,
+        lump_sums=(),
+    )
+
+
+# ==============================================================================
+# 1. 基礎契約與型別測試 (Contract & Data Integrity)
+# ==============================================================================
+
+
+def test_calculate_returns_result_instance(base_params: Params):
+    """驗證 calculate 執行成功並回傳 Result 實例。"""
+    res = calculate(base_params)
+    assert isinstance(res, Result), "calculate 應回傳 Result 形態"
+
+
+def test_result_scalar_fields_are_finite_floats(base_params: Params):
+    """驗證回傳的純量數值欄位型別為 float 且皆為有限數值（非 NaN、非 Inf）。"""
+    res = calculate(base_params)
+
+    for field_name in ("projected_savings", "target_fund", "retirement_gap"):
+        val = getattr(res, field_name)
+        assert isinstance(val, (int, float)), f"{field_name} 必須是浮點數或整數"
+        assert math.isfinite(float(val)), f"{field_name} 不得為 NaN 或 Inf"
+
+
+def test_result_balances_series_types_and_length(base_params: Params):
+    """驗證 balances_raw 與 balances_charted 皆為 tuple，內容為有限浮點數，且長度與年齡跨度一致。"""
+    res = calculate(base_params)
+
+    assert isinstance(res.balances_raw, tuple), "balances_raw 必須是 tuple"
+    assert isinstance(res.balances_charted, tuple), "balances_charted 必須是 tuple"
+
+    # balances 長度應涵蓋當前年齡至預期壽命區間
+    expected_span = base_params.life_expectancy - base_params.current_age
+    assert len(res.balances_raw) in (expected_span, expected_span + 1), (
+        f"balances_raw 長度應為 {expected_span} 或 {expected_span + 1}，實際為 {len(res.balances_raw)}"
+    )
+    assert len(res.balances_raw) == len(res.balances_charted), (
+        "balances_raw 與 balances_charted 之序列長度應完全一致"
+    )
+
+    for i, val in enumerate(res.balances_raw):
+        assert isinstance(val, (int, float)), f"balances_raw[{i}] 必須為數值型態"
+        assert math.isfinite(float(val)), f"balances_raw[{i}] 不得為 NaN 或 Inf"
+
+    for i, val in enumerate(res.balances_charted):
+        assert isinstance(val, (int, float)), f"balances_charted[{i}] 必須為數值型態"
+        assert math.isfinite(float(val)), f"balances_charted[{i}] 不得為 NaN 或 Inf"
+
+
+# ==============================================================================
+# 2. 財務定性單調性測試 (Financial Monotonicity & Invariants)
+# ==============================================================================
+
+
+def test_projected_savings_monotonically_increases_with_current_savings(base_params: Params):
+    """初始資產增加時，退休時累積資產 projected_savings 應嚴格遞增。"""
+    p_high = replace(base_params, current_savings=base_params.current_savings + 200_000.0)
+
+    res_base = calculate(base_params)
+    res_high = calculate(p_high)
+
+    assert res_high.projected_savings > res_base.projected_savings, (
+        "較高的 current_savings 應產生較高的 projected_savings"
+    )
+
+
+def test_projected_savings_monotonically_increases_with_monthly_investment(base_params: Params):
+    """每月投資額增加時，退休時累積資產 projected_savings 應嚴格遞增。"""
+    p_high = replace(base_params, monthly_investment=base_params.monthly_investment + 10_000.0)
+
+    res_base = calculate(base_params)
+    res_high = calculate(p_high)
+
+    assert res_high.projected_savings > res_base.projected_savings, (
+        "較高的 monthly_investment 應產生較高的 projected_savings"
+    )
+
+
+def test_projected_savings_monotonically_increases_with_pre_retirement_return(base_params: Params):
+    """退休前報酬率提高時，退休時累積資產 projected_savings 應嚴格遞增。"""
+    p_high = replace(base_params, pre_retirement_return=base_params.pre_retirement_return + 0.02)
+
+    res_base = calculate(base_params)
+    res_high = calculate(p_high)
+
+    assert res_high.projected_savings > res_base.projected_savings, (
+        "較高的 pre_retirement_return 應產生較高的 projected_savings"
+    )
+
+
+def test_target_fund_monotonically_increases_with_monthly_expense(base_params: Params):
+    """退休每月生活費預算增加時，所需目標資金 target_fund 應嚴格遞增。"""
+    p_high = replace(base_params, monthly_expense_today=base_params.monthly_expense_today + 10_000.0)
+
+    res_base = calculate(base_params)
+    res_high = calculate(p_high)
+
+    assert res_high.target_fund > res_base.target_fund, (
+        "較高的 monthly_expense_today 應產生較高的 target_fund"
+    )
+
+
+def test_target_fund_monotonically_increases_with_annual_recurring_expense(base_params: Params):
+    """新增年度重複開銷時，所需目標資金 target_fund 應大於或等於無年度開銷時之值。"""
+    p_with_annual = replace(base_params, annual_recurring_expense=60_000.0)
+
+    res_base = calculate(base_params)
+    res_with_annual = calculate(p_with_annual)
+
+    assert res_with_annual.target_fund >= res_base.target_fund, (
+        "新增 annual_recurring_expense 應使 target_fund 上升或至少持平"
+    )
+
+
+def test_target_fund_monotonically_increases_with_inflation_rate(base_params: Params):
+    """通膨率提高時，在相同今天實質開銷下，退休目標金 target_fund 應遞增。"""
+    p_high_infl = replace(base_params, inflation_rate=base_params.inflation_rate + 0.02)
+
+    res_base = calculate(base_params)
+    res_high = calculate(p_high_infl)
+
+    assert res_high.target_fund > res_base.target_fund, (
+        "較高的 inflation_rate 應導致更高的 target_fund"
+    )
+
+
+# ==============================================================================
+# 3. 單筆收支與年金收入測試 (LumpSum & Pension Handling)
+# ==============================================================================
+
+
+def test_positive_pre_retirement_lump_sum_increases_projected_savings(base_params: Params):
+    """退休前獲得單筆資金（如繼承或分紅），應使退休時累積資產增加。"""
+    lump = LumpSum(age=base_params.current_age + 10, amount=300_000.0)
+    p_with_lump = replace(base_params, lump_sums=(lump,))
+
+    res_base = calculate(base_params)
+    res_lump = calculate(p_with_lump)
+
+    assert res_lump.projected_savings > res_base.projected_savings, (
+        "退休前有單筆正向現金流入時，projected_savings 應增加"
+    )
+
+
+def test_multiple_lump_sums_handling(base_params: Params):
+    """測試傳入多筆不同年齡之單筆收支，函式可正常運算不拋例外。"""
+    lumps = (
+        LumpSum(age=base_params.current_age + 5, amount=100_000.0),
+        LumpSum(age=base_params.retirement_age + 5, amount=-150_000.0),
+        LumpSum(age=base_params.retirement_age + 10, amount=50_000.0),
+    )
+    p_lumps = replace(base_params, lump_sums=lumps)
+    res = calculate(p_lumps)
+
+    assert isinstance(res, Result)
+    assert math.isfinite(res.projected_savings)
+    assert math.isfinite(res.target_fund)
+
+
+def test_pension_and_other_incomes_execution(base_params: Params):
+    """測試包含勞保年金、勞退月退與其他收入的完整計算情境。"""
+    p_pension = replace(
+        base_params,
+        labor_insurance_pension=20_000.0,
+        labor_insurance_start_age=65,
+        labor_pension_monthly=15_000.0,
+        labor_pension_start_age=65,
+        other_income=5_000.0,
+    )
+    res = calculate(p_pension)
+
+    assert isinstance(res, Result)
+    assert math.isfinite(res.target_fund)
+    assert math.isfinite(res.projected_savings)
+    assert math.isfinite(res.retirement_gap)
+
+
+# ==============================================================================
+# 4. 邊界條件與極端值測試 (Boundary & Zero-Condition Tests)
+# ==============================================================================
+
+
+def test_all_zero_financial_inputs():
+    """當所有金錢輸入皆為 0 時，模型應正常執行且不發生除以零或溢位錯誤。"""
+    p_zero = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=80,
+        current_savings=0.0,
+        monthly_investment=0.0,
+        monthly_expense_today=0.0,
+        annual_recurring_expense=0.0,
+        labor_insurance_pension=0.0,
+        labor_pension_monthly=0.0,
+        other_income=0.0,
+        pre_retirement_return=0.05,
+        post_retirement_return=0.03,
+        inflation_rate=0.01,
+        lump_sums=(),
+    )
+    res = calculate(p_zero)
+
+    assert isinstance(res, Result)
+    assert math.isclose(res.projected_savings, 0.0, abs_tol=1e-4)
+    assert math.isclose(res.target_fund, 0.0, abs_tol=1e-4)
+
+
+def test_zero_rate_environment(base_params: Params):
+    """在零報酬率與零通膨率環境下，模型計算應能平穩執行。"""
+    p_flat = replace(
+        base_params,
+        pre_retirement_return=0.0,
+        post_retirement_return=0.0,
+        inflation_rate=0.0,
+    )
+    res = calculate(p_flat)
+
+    assert isinstance(res, Result)
+    assert math.isfinite(res.projected_savings)
+    assert math.isfinite(res.target_fund)
+
+
+def test_boundary_current_age_equals_retirement_age(base_params: Params):
+    """當前年齡已達退休年齡 (current_age == retirement_age)。"""
+    p_retiring_now = replace(
+        base_params,
+        current_age=65,
+        retirement_age=65,
+        life_expectancy=85,
+    )
+    res = calculate(p_retiring_now)
+
+    assert isinstance(res, Result)
+    assert math.isfinite(res.projected_savings)
+    assert math.isfinite(res.target_fund)
+    assert len(res.balances_raw) == len(res.balances_charted)
+
+
+def test_boundary_retirement_age_equals_life_expectancy(base_params: Params):
+    """退休年齡等於預期壽命 (retirement_age == life_expectancy)。"""
+    p_work_until_death = replace(
+        base_params,
+        current_age=30,
+        retirement_age=80,
+        life_expectancy=80,
+    )
+    res = calculate(p_work_until_death)
+
+    assert isinstance(res, Result)
+    assert math.isfinite(res.projected_savings)
+    assert math.isfinite(res.target_fund)
+
+
+# ==============================================================================
+# 5. 規格未明定之行為測試 (Marked with xfail / skip)
+# ==============================================================================
+
+
+@pytest.mark.xfail(
+    reason="規格未明確定義 retirement_gap 正負號（為 target_fund - projected_savings 還是相反）以及是否截斷至 0",
+    strict=False,
+)
+def test_retirement_gap_exact_algebraic_relation(base_params: Params):
+    """驗證缺口計算公式 retirement_gap == target_fund - projected_savings。"""
+    res = calculate(base_params)
+    assert math.isclose(res.retirement_gap, res.target_fund - res.projected_savings, rel_tol=1e-3)
+
+
+@pytest.mark.xfail(
+    reason="規格未定義 balances_charted 在資產破產（餘額為負）時是否強制截斷至 0.0 (max(0, val))",
+    strict=False,
+)
+def test_balances_charted_never_negative(base_params: Params):
+    """驗證 balances_charted 不會出現負值（作為圖表顯示用的截斷特性）。"""
+    # 調高生活支出，迫使退休後資金用罄破產
+    p_bankrupt = replace(
+        base_params,
+        current_savings=0.0,
+        monthly_investment=0.0,
+        monthly_expense_today=200_000.0,
+    )
+    res = calculate(p_bankrupt)
+
+    assert any(b < 0.0 for b in res.balances_raw), "balances_raw 應出現負數資產"
+    assert all(b >= 0.0 for b in res.balances_charted), "balances_charted 應將負數截斷至 0"
+
+
+@pytest.mark.xfail(
+    reason="規格未定義輸入不合理年齡（如 current_age > retirement_age）時是否應主動拋出 ValueError",
+    strict=False,
+)
+def test_invalid_age_ordering_raises_value_error(base_params: Params):
+    """驗證當 current_age > retirement_age 時，系統是否進行前置參數驗證並拋出 ValueError。"""
+    p_invalid = replace(base_params, current_age=70, retirement_age=60)
+    with pytest.raises(ValueError):
+        calculate(p_invalid)
+
+
+@pytest.mark.xfail(
+    reason="規格未指定月投資累積是採期初年金 (annuity due) 還是期末年金 (ordinary annuity) 精確折算模型",
+    strict=False,
+)
+def test_exact_annuity_compounding_convention(base_params: Params):
+    """驗證精確的複利年金累積公式。"""
+    # 僅留月投資額，初始資產為 0，零利率環境
+    p = replace(
+        base_params,
+        current_savings=0.0,
+        pre_retirement_return=0.0,
+        monthly_investment=10_000.0,
+        current_age=30,
+        retirement_age=31,  # 正好 1 年 (12 個月)
+    )
+    res = calculate(p)
+    # 若零報酬率，12 個月投資 10,000 應恰好為 120,000
+    assert math.isclose(res.projected_savings, 120_000.0, rel_tol=1e-5)

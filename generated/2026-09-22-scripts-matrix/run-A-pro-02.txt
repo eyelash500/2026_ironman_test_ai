@@ -1,0 +1,254 @@
+import sys
+from pathlib import Path
+import math
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "shadow"))
+
+from calc_fixed import LumpSum, Params, Result, calculate  # noqa: E402
+
+
+def test_prd_01_accumulation_zero_return():
+    """PRD-01: r=0 時退化為線性累加，月存為期末投入"""
+    p = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=80,
+        current_savings=100000,
+        monthly_investment=10000,
+        monthly_expense_today=0,
+        pre_retirement_return=0.0,
+        post_retirement_return=0.0
+    )
+    res = calculate(p)
+    # N = (60 - 30) * 12 = 360
+    # savings = 100000 + 360 * 10000 = 3700000
+    assert math.isclose(res.projected_savings, 3700000.0, rel_tol=1e-5)
+
+
+def test_prd_01_accumulation_positive_return():
+    """PRD-01: 累積期增值，名目月利率 r/12，月複利"""
+    p = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=80,
+        current_savings=100000,
+        monthly_investment=10000,
+        monthly_expense_today=0,
+        pre_retirement_return=0.06,
+        post_retirement_return=0.0
+    )
+    res = calculate(p)
+    n = (60 - 30) * 12
+    i_m = 0.06 / 12
+    # 本金複利 + 投入年金終值 (期末)
+    expected_savings = 100000 * ((1 + i_m) ** n) + 10000 * (((1 + i_m) ** n - 1) / i_m)
+    assert math.isclose(res.projected_savings, expected_savings, rel_tol=1e-5)
+
+
+def test_prd_02_and_08_target_fund():
+    """PRD-02, PRD-08: 目標金額折現，期初年金，支出通膨鎖現齡 A_c"""
+    p = Params(
+        current_age=59,
+        retirement_age=60,
+        life_expectancy=61,  # 60, 61 共兩年
+        current_savings=0,
+        monthly_investment=0,
+        monthly_expense_today=10000,
+        annual_recurring_expense=50000,
+        pre_retirement_return=0.0,
+        post_retirement_return=0.05,
+        inflation_rate=0.02
+    )
+    res = calculate(p)
+    
+    # 總年支出 = 120000 + 50000 = 170000
+    # 第 60 年：通膨 1 年 (60 - 59)
+    exp_60 = 170000 * (1.02 ** 1)
+    # 第 61 年：通膨 2 年 (61 - 59)
+    exp_61 = 170000 * (1.02 ** 2)
+    
+    # 折現至 60 歲 (r_p = 0.05)
+    # 期初年金：60歲當下不折現，61歲折現 1 年
+    expected_target = exp_60 + (exp_61 / 1.05)
+    
+    assert math.isclose(res.target_fund, expected_target, rel_tol=1e-5)
+
+
+def test_prd_05_lump_sum_inclusion():
+    """PRD-05: 大筆支出僅 A_r <= A_e <= A_d 計入，通膨鎖 A_c"""
+    # 基準：只有合法區間的大筆支出
+    p_base = Params(
+        current_age=50,
+        retirement_age=60,
+        life_expectancy=70,
+        current_savings=0,
+        monthly_investment=0,
+        monthly_expense_today=10000,
+        pre_retirement_return=0.0,
+        post_retirement_return=0.0,
+        inflation_rate=0.0,
+        lump_sums=(LumpSum(age=65, amount=100000),)
+    )
+    res_base = calculate(p_base)
+
+    # 包含超出區間的大筆支出（計算時應被忽略）
+    p_extra = Params(
+        current_age=50,
+        retirement_age=60,
+        life_expectancy=70,
+        current_savings=0,
+        monthly_investment=0,
+        monthly_expense_today=10000,
+        pre_retirement_return=0.0,
+        post_retirement_return=0.0,
+        inflation_rate=0.0,
+        lump_sums=(
+            LumpSum(age=55, amount=999999),  # A_r 之前
+            LumpSum(age=65, amount=100000),  # 合法
+            LumpSum(age=75, amount=999999),  # A_d 之後
+        )
+    )
+    res_extra = calculate(p_extra)
+
+    # 兩者算出的 target_fund 應該要完全一致
+    assert math.isclose(res_base.target_fund, res_extra.target_fund, rel_tol=1e-5)
+
+
+def test_prd_05_lump_sum_inflation():
+    """PRD-05: 大筆支出輸入金額視為今日幣值，通膨基準鎖 A_c"""
+    p = Params(
+        current_age=50,
+        retirement_age=60,
+        life_expectancy=60,
+        current_savings=0,
+        monthly_investment=0,
+        monthly_expense_today=0,
+        pre_retirement_return=0.0,
+        post_retirement_return=0.0,
+        inflation_rate=0.02,
+        lump_sums=(LumpSum(age=60, amount=100000),)
+    )
+    res = calculate(p)
+    
+    # 通膨鎖 A_c (50歲)，到 60 歲時已經過 10 年
+    expected_target = 100000 * (1.02 ** 10)
+    assert math.isclose(res.target_fund, expected_target, rel_tol=1e-5)
+
+
+def test_prd_06_07_10_pensions():
+    """PRD-06, PRD-07, PRD-10: 勞保勞退達年齡後計入，通膨鎖 A_p"""
+    p = Params(
+        current_age=50,
+        retirement_age=60,
+        life_expectancy=65,
+        current_savings=0,
+        monthly_investment=0,
+        monthly_expense_today=20000,  # 年支出 240,000
+        pre_retirement_return=0.0,
+        post_retirement_return=0.0,
+        inflation_rate=0.02,
+        labor_insurance_pension=10000,  # 月額
+        labor_insurance_start_age=63,
+        labor_pension_monthly=5000,     # 月額
+        labor_pension_start_age=65
+    )
+    res = calculate(p)
+    
+    target_fund = 0.0
+    # t 從 60 到 65 (共 6 年)
+    for t in range(60, 66):
+        # 支出通膨鎖 A_c=50
+        exp = 240000 * (1.02 ** (t - 50))
+        inc = 0.0
+        # 勞保通膨鎖 A_p=63
+        if t >= 63:
+            inc += 120000 * (1.02 ** (t - 63))
+        # 勞退通膨鎖 A_p=65
+        if t >= 65:
+            inc += 60000 * (1.02 ** (t - 65))
+        
+        net = max(0.0, exp - inc)
+        target_fund += net  # r_p = 0，不需額外折現
+
+    assert math.isclose(res.target_fund, target_fund, rel_tol=1e-5)
+
+
+def test_prd_09_expense_floor():
+    """PRD-09: 淨支出下限 max(0, 支出-收入)，盈餘不滾存"""
+    p = Params(
+        current_age=55,
+        retirement_age=60,
+        life_expectancy=61,
+        current_savings=0,
+        monthly_investment=0,
+        monthly_expense_today=10000,  # 年支出 120,000
+        pre_retirement_return=0.0,
+        post_retirement_return=0.0,
+        inflation_rate=0.0,
+        labor_insurance_pension=20000,  # 換算年收入 240,000
+        labor_insurance_start_age=60
+    )
+    res = calculate(p)
+    
+    # 每年收入皆大於支出，淨支出應為 0，Target Fund 為 0
+    assert math.isclose(res.target_fund, 0.0, abs_tol=1e-5)
+
+
+def test_prd_12_chart_balances_no_truncation():
+    """PRD-12, PRD-03: 圖表餘額不得下限截斷，照實輸出負值，且 balances_charted == balances_raw"""
+    p = Params(
+        current_age=50,
+        retirement_age=60,
+        life_expectancy=65,
+        current_savings=0,           # 準備金為 0
+        monthly_investment=0,
+        monthly_expense_today=10000, # 退休後持續有淨支出
+        pre_retirement_return=0.0,
+        post_retirement_return=0.0,
+        inflation_rate=0.0
+    )
+    res = calculate(p)
+    
+    # PRD-12: 必須逐項等於
+    assert res.balances_charted == res.balances_raw
+    
+    # PRD-03, PRD-12: 真實餘額不足時照實輸出負值，禁止截斷
+    assert any(b < 0 for b in res.balances_raw), "Balances should contain negative values due to zero savings and positive expenses."
+    
+    # 軌跡長度對齊 PRD-02 (A_d - A_r + 1 年)
+    assert len(res.balances_raw) == (65 - 60 + 1)
+
+
+def test_prd_04_validation():
+    """PRD-04: 輸入校驗，不符規定時拋出例外 (禁止靜默補零或丟棄)"""
+    invalid_params = [
+        # A_c < A_r 不成立
+        Params(current_age=60, retirement_age=60, life_expectancy=80, current_savings=0, monthly_investment=0, monthly_expense_today=0),
+        # A_r < A_d 不成立
+        Params(current_age=30, retirement_age=60, life_expectancy=60, current_savings=0, monthly_investment=0, monthly_expense_today=0),
+        # 金額非負不成立
+        Params(current_age=30, retirement_age=60, life_expectancy=80, current_savings=-1000, monthly_investment=0, monthly_expense_today=0),
+        Params(current_age=30, retirement_age=60, life_expectancy=80, current_savings=0, monthly_investment=-1000, monthly_expense_today=0),
+        Params(current_age=30, retirement_age=60, life_expectancy=80, current_savings=0, monthly_investment=0, monthly_expense_today=-100),
+    ]
+    
+    for p in invalid_params:
+        with pytest.raises(Exception):
+            calculate(p)
+
+
+@pytest.mark.skip(reason="PRD-11 是介面標示需求 (UI labeling)，核心計算模組的資料結構無對應欄位可測")
+def test_prd_11_ui_labels():
+    pass
+
+
+@pytest.mark.skip(reason="PRD-10 中 other_income 規格未明確定義為月額或年額，跳過精確數值測試以免斷言失準")
+def test_other_income_ambiguity():
+    pass
+
+
+@pytest.mark.skip(reason="balances_raw 的精確點位（期初扣款前 vs 扣款後 vs 期末）於規格中未窮盡定義，已透過 PRD-12 測試其一致性及非截斷行為")
+def test_balances_raw_exact_trajectory():
+    pass

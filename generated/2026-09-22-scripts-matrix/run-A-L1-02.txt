@@ -1,0 +1,102 @@
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "shadow"))
+
+from calc_fixed import LumpSum, Params, Result, calculate  # noqa: E402
+
+
+def test_params_creation_and_defaults():
+    """測試 Params 的基本屬性與預設值是否符合介面定義。"""
+    p = Params(
+        current_age=30,
+        retirement_age=65,
+        life_expectancy=85,
+        current_savings=100000.0,
+        monthly_investment=10000.0,
+        monthly_expense_today=30000.0
+    )
+    
+    # 必填欄位
+    assert p.current_age == 30
+    assert p.retirement_age == 65
+    assert p.life_expectancy == 85
+    assert p.current_savings == 100000.0
+    assert p.monthly_investment == 10000.0
+    assert p.monthly_expense_today == 30000.0
+    
+    # 選填欄位預設值檢查
+    assert p.annual_recurring_expense == 0.0
+    assert p.labor_insurance_pension == 0.0
+    assert p.labor_insurance_start_age == 0
+    assert p.labor_pension_monthly == 0.0
+    assert p.labor_pension_start_age == 0
+    assert p.other_income == 0.0
+    assert p.pre_retirement_return == 0.08
+    assert p.post_retirement_return == 0.04
+    assert p.inflation_rate == 0.02
+    assert p.lump_sums == ()
+
+
+def test_lump_sum_creation():
+    """測試 LumpSum 資料類別的建立。"""
+    ls = LumpSum(age=50, amount=500000.0)
+    assert ls.age == 50
+    assert ls.amount == 500000.0
+
+
+def test_result_creation():
+    """測試 Result 資料類別的建立。"""
+    res = Result(
+        projected_savings=15000000.0,
+        target_fund=20000000.0,
+        retirement_gap=5000000.0,
+        balances_raw=(100000.0, 110000.0),
+        balances_charted=(100000.0, 110000.0)
+    )
+    assert res.projected_savings == 15000000.0
+    assert res.target_fund == 20000000.0
+    assert res.retirement_gap == 5000000.0
+    assert res.balances_raw == (100000.0, 110000.0)
+    assert res.balances_charted == (100000.0, 110000.0)
+
+
+def test_calculate_projected_savings():
+    pytest.skip(
+        reason="規格未提供預估存款 (projected_savings) 的詳細計算公式。"
+               "例如：複利週期為月還是年、投入時點為期初還是期末、"
+               "以及通膨是否於累積期影響實質報酬等皆未說明，無法給出精確斷言。"
+    )
+
+
+def test_calculate_target_fund():
+    pytest.skip(
+        reason="規格未提供目標退休金 (target_fund) 的詳細計算公式。"
+               "缺乏退休後現金流的折現率計算方法、勞保/勞退給付與其他收入的扣抵規則，"
+               "以及通膨影響細節，無法進行斷言測試。"
+    )
+
+
+def test_calculate_retirement_gap():
+    pytest.skip(
+        reason="規格未提供退休金缺口 (retirement_gap) 的演算法。"
+               "無法確定是否單純為 target_fund - projected_savings 抑或包含其他調整。"
+    )
+
+
+def test_calculate_balances():
+    pytest.skip(
+        reason="規格未提供 balances_raw 與 balances_charted 的計算邏輯及陣列長度規格。"
+               "無法確知陣列區間（例如是否包含 current_age 到 life_expectancy），"
+               "以及 charted 是否有經過平滑或最大化處理等視覺化特定調整。"
+    )
+
+
+def test_calculate_lump_sums_impact():
+    pytest.skip(
+        reason="規格未提供單筆收支 (lump_sums) 如何影響資金餘額的邏輯。"
+               "發生時點的具體運算，以及後續影響複利軌跡的數學定義均未提供。"
+    )

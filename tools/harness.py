@@ -190,8 +190,15 @@ def calibrate(project_root: str, naive: bool = False) -> int:
     return 0
 
 
-def run_domain(project_root: str, extra_tests: list[str] | None = None) -> int:
+def run_domain(project_root: str, extra_tests: list[str] | None = None,
+               solo: bool = False) -> int:
     """正式一輪：14 個領域變異體打在 calc_fixed 上，由 golden v2 套件應戰。
+
+    `solo=True` 時**不帶 golden v2**，只跑指定的測試檔。
+    理由：合計版量的是「golden 加上這份新測試」，而 golden 自己就有 85.7%，
+    一份什麼都沒加的腳本也會顯示 85.7%——那個數字大半是 golden 的功勞。
+    要回答「這份測試自己殺得掉幾個」，分母裡不能有別人的戰功。
+    兩種都跑、兩欄並列：合計看增量，單獨看實力。
 
     基底與套件的配對只有一種可能：領域變異體改的是 `shadow/calc_fixed.py`，
     而 repo 裡唯一 import `calc_fixed` 的套件是 `tests/test_golden_v2.py`。
@@ -203,9 +210,15 @@ def run_domain(project_root: str, extra_tests: list[str] | None = None) -> int:
     if audit() != 0:
         raise SystemExit("中止：目錄自檢未通過，不注入")
 
-    rel_tests = ["tests/test_golden_v2.py"] + list(extra_tests or [])
+    if solo:
+        rel_tests = list(extra_tests or [])
+        if not rel_tests:
+            raise SystemExit("中止：--solo 必須指定至少一個測試檔，否則沒有東西應戰")
+    else:
+        rel_tests = ["tests/test_golden_v2.py"] + list(extra_tests or [])
     _assert_baseline(project_root, rel_tests)
-    print(f"基準線：未變異時 {' + '.join(rel_tests)} 全綠\n")
+    print(f"基準線：未變異時 {' + '.join(rel_tests)} 全綠"
+          f"{'（單獨模式，未帶 golden v2）' if solo else ''}\n")
 
     out = evaluate(project_root, REL_SOURCE, rel_tests, DOMAIN_MUTANTS)
     for m in DOMAIN_MUTANTS:
@@ -229,11 +242,12 @@ def main(argv: list[str]) -> int:
     if "--domain" in argv:
         i = argv.index("--domain")
         extra = [a for a in argv[i + 1:] if not a.startswith("--")]
-        return run_domain(root, extra)
+        return run_domain(root, extra, solo="--solo" in argv)
     raise SystemExit(
         "用法：harness.py --calibrate [--naive]\n"
-        "  ｜ harness.py --domain [額外的測試檔 ...]\n"
-        "例：harness.py --domain tests/test_feedback.py")
+        "  ｜ harness.py --domain [額外的測試檔 ...] [--solo]\n"
+        "例：harness.py --domain tests/test_feedback.py\n"
+        "　　harness.py --domain tests/test_ai_matrix.py --solo   # 不帶 golden")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,195 @@
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "shadow"))
+
+from calc_fixed import LumpSum, Params, Result, calculate  # noqa: E402
+
+
+def test_result_structure():
+    """Verify that calculate returns a correctly typed Result object."""
+    p = Params(
+        current_age=30,
+        retirement_age=65,
+        life_expectancy=85,
+        current_savings=100_000.0,
+        monthly_investment=10_000.0,
+        monthly_expense_today=50_000.0,
+        annual_recurring_expense=10_000.0,
+        labor_insurance_pension=20_000.0,
+        labor_insurance_start_age=65,
+        labor_pension_monthly=5_000.0,
+        labor_pension_start_age=65,
+        other_income=2_000.0,
+        pre_retirement_return=0.06,
+        post_retirement_return=0.04,
+        inflation_rate=0.02,
+        lump_sums=(LumpSum(age=40, amount=500_000.0),)
+    )
+    res = calculate(p)
+    assert isinstance(res, Result)
+    assert isinstance(res.projected_savings, float)
+    assert isinstance(res.target_fund, float)
+    assert isinstance(res.retirement_gap, float)
+    assert isinstance(res.balances_raw, tuple)
+    assert isinstance(res.balances_charted, tuple)
+
+
+def test_zero_scenario():
+    """When there is no money involved, all monetary results should be 0.0."""
+    p = Params(
+        current_age=30,
+        retirement_age=65,
+        life_expectancy=85,
+        current_savings=0.0,
+        monthly_investment=0.0,
+        monthly_expense_today=0.0,
+        annual_recurring_expense=0.0,
+        pre_retirement_return=0.0,
+        post_retirement_return=0.0,
+        inflation_rate=0.0
+    )
+    res = calculate(p)
+    assert res.projected_savings == 0.0
+    assert res.target_fund == 0.0
+    assert res.retirement_gap == 0.0
+    for b in res.balances_raw:
+        assert b == 0.0
+    for b in res.balances_charted:
+        assert b == 0.0
+
+
+def test_projected_savings_no_interest():
+    """Test projected savings when there's no interest rate."""
+    pytest.skip(reason="Compounding logic (start of month vs end of month) and precise timing are not defined in the specification.")
+    p = Params(
+        current_age=30,
+        retirement_age=40,
+        life_expectancy=50,
+        current_savings=1000.0,
+        monthly_investment=100.0,
+        monthly_expense_today=0.0,
+        pre_retirement_return=0.0,
+        post_retirement_return=0.0,
+        inflation_rate=0.0
+    )
+    res = calculate(p)
+    expected_savings = 1000.0 + (100.0 * 12 * 10)
+    assert res.projected_savings == expected_savings
+
+
+def test_target_fund_no_inflation():
+    """Test target fund without inflation or interest."""
+    pytest.skip(reason="Calculation method for target fund (e.g., PV vs nominal sum) is unspecified.")
+    p = Params(
+        current_age=30,
+        retirement_age=40,
+        life_expectancy=50,
+        current_savings=0.0,
+        monthly_investment=0.0,
+        monthly_expense_today=1000.0,
+        pre_retirement_return=0.0,
+        post_retirement_return=0.0,
+        inflation_rate=0.0
+    )
+    res = calculate(p)
+    expected_fund = 1000.0 * 12 * 10
+    assert res.target_fund == expected_fund
+
+
+def test_retirement_gap():
+    """Test that the retirement gap correctly relates target fund and projected savings."""
+    pytest.skip(reason="The mathematical formula for gap (Target - Projected vs Projected - Target) is unspecified.")
+    p = Params(
+        current_age=30,
+        retirement_age=65,
+        life_expectancy=85,
+        current_savings=500_000.0,
+        monthly_investment=10_000.0,
+        monthly_expense_today=50_000.0,
+    )
+    res = calculate(p)
+    assert res.retirement_gap == res.target_fund - res.projected_savings
+
+
+def test_lump_sum_handling():
+    """Test how a lump sum affects the projected savings."""
+    pytest.skip(reason="Uncertain if lump sum is added at the beginning or end of the year, and if interest applies in that specific year.")
+    p = Params(
+        current_age=30,
+        retirement_age=40,
+        life_expectancy=50,
+        current_savings=0.0,
+        monthly_investment=0.0,
+        monthly_expense_today=0.0,
+        pre_retirement_return=0.0,
+        post_retirement_return=0.0,
+        inflation_rate=0.0,
+        lump_sums=(LumpSum(age=35, amount=10000.0),)
+    )
+    res = calculate(p)
+    assert res.projected_savings == 10000.0
+
+
+def test_balances_length():
+    """Test the length of balances_raw and balances_charted arrays."""
+    pytest.skip(reason="Unspecified whether balances track months or years, and whether they are inclusive of the boundaries.")
+    p = Params(
+        current_age=30,
+        retirement_age=65,
+        life_expectancy=85,
+        current_savings=0.0,
+        monthly_investment=0.0,
+        monthly_expense_today=0.0
+    )
+    res = calculate(p)
+    expected_length = 85 - 30 + 1
+    assert len(res.balances_raw) == expected_length
+    assert len(res.balances_charted) == expected_length
+
+
+def test_pension_deduction():
+    """Test if labor insurance pension correctly offsets the target fund."""
+    pytest.skip(reason="Pension deduction mechanism (monthly offset vs lump sum PV offset) is undefined.")
+    p = Params(
+        current_age=30,
+        retirement_age=40,
+        life_expectancy=50,
+        current_savings=0.0,
+        monthly_investment=0.0,
+        monthly_expense_today=1000.0,
+        labor_insurance_pension=500.0,
+        labor_insurance_start_age=40,
+        pre_retirement_return=0.0,
+        post_retirement_return=0.0,
+        inflation_rate=0.0
+    )
+    res = calculate(p)
+    expected_target = (1000.0 - 500.0) * 12 * 10
+    assert res.target_fund == expected_target
+
+
+def test_typical_scenario_with_returns():
+    """Test a standard scenario where all returns and inflation apply."""
+    pytest.skip(reason="Complex compounding mechanics with inflation, returns, and diverse incomes are completely undefined in the spec.")
+    p = Params(
+        current_age=40,
+        retirement_age=60,
+        life_expectancy=80,
+        current_savings=1_000_000.0,
+        monthly_investment=20_000.0,
+        monthly_expense_today=60_000.0,
+        labor_insurance_pension=15_000.0,
+        labor_insurance_start_age=65,
+        labor_pension_monthly=10_000.0,
+        labor_pension_start_age=60,
+        pre_retirement_return=0.06,
+        post_retirement_return=0.04,
+        inflation_rate=0.02,
+    )
+    res = calculate(p)
+    assert res.projected_savings > 1_000_000.0
+    assert res.target_fund > 0.0

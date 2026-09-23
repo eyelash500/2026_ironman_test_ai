@@ -1,0 +1,105 @@
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "shadow"))
+
+from calc_fixed import LumpSum, Params, Result, calculate  # noqa: E402
+
+
+def test_lumpsum_dataclass():
+    """測試 LumpSum 資料結構建立與屬性"""
+    ls = LumpSum(age=50, amount=500000.0)
+    assert ls.age == 50
+    assert ls.amount == 500000.0
+
+
+def test_params_dataclass_and_defaults():
+    """測試 Params 的建立以及預設值是否符合介面定義"""
+    p = Params(
+        current_age=30,
+        retirement_age=65,
+        life_expectancy=85,
+        current_savings=100000.0,
+        monthly_investment=15000.0,
+        monthly_expense_today=40000.0,
+    )
+    assert p.current_age == 30
+    assert p.annual_recurring_expense == 0.0
+    assert p.labor_insurance_pension == 0.0
+    assert p.labor_insurance_start_age == 0
+    assert p.labor_pension_monthly == 0.0
+    assert p.labor_pension_start_age == 0
+    assert p.other_income == 0.0
+    assert p.pre_retirement_return == 0.08
+    assert p.post_retirement_return == 0.04
+    assert p.inflation_rate == 0.02
+    assert p.lump_sums == ()
+
+
+def test_result_dataclass():
+    """測試 Result 資料結構建立"""
+    r = Result(
+        projected_savings=100.0,
+        target_fund=200.0,
+        retirement_gap=100.0,
+        balances_raw=(100.0, 150.0),
+        balances_charted=(100.0, 150.0)
+    )
+    assert r.projected_savings == 100.0
+    assert r.balances_raw == (100.0, 150.0)
+
+
+def test_calculate_execution_and_return_types():
+    """
+    測試 calculate 函式是否能正常執行並回傳正確型別。
+    因實作內容未知且無任何行為規格，若發生例外則跳過。
+    """
+    p = Params(
+        current_age=30,
+        retirement_age=65,
+        life_expectancy=85,
+        current_savings=0.0,
+        monthly_investment=0.0,
+        monthly_expense_today=0.0,
+    )
+    try:
+        res = calculate(p)
+    except Exception as e:
+        pytest.skip(f"實作拋出例外，且規格未定義錯誤處理機制: {e}")
+        
+    assert isinstance(res, Result), "回傳值型別不符介面定義"
+    assert isinstance(res.balances_raw, tuple)
+    assert isinstance(res.balances_charted, tuple)
+
+
+def test_calculate_math_formula():
+    """測試退休金核心計算的數學邏輯"""
+    pytest.skip("規格未定義具體計算公式 (例如：月/年複利、期初/期末投入)，無法進行數值驗證")
+
+
+def test_calculate_inflation():
+    """測試通貨膨脹對目標退休金與支出的影響"""
+    pytest.skip("規格未定義通膨的基準年份與調整頻率，無法進行數值驗證")
+
+
+def test_calculate_pension_incomes():
+    """測試勞保與勞退年金的收入折算與發放區間"""
+    pytest.skip("規格未定義年金發放的計算區間與給付邏輯，無法進行數值驗證")
+
+
+def test_calculate_lump_sums_handling():
+    """測試特定年齡單筆大額收支的影響"""
+    pytest.skip("規格未定義單筆收支發生時點 (年初/年底) 以及是否再投入生息，無法進行測試")
+
+
+def test_calculate_balances_length():
+    """測試 balances_raw 與 balances_charted 的回傳陣列長度"""
+    pytest.skip("規格未定義陣列長度與年齡的對應關係，無法斷言長度或內容")
+
+
+def test_calculate_edge_cases():
+    """測試異常或極端參數 (例如：預期壽命小於等於退休年齡、負數金額)"""
+    pytest.skip("規格未定義極端與異常輸入的處理機制，無法進行斷言")

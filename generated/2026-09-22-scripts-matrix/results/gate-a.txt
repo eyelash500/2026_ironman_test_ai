@@ -1,0 +1,168 @@
+# 關 A：tools/assert_inspector.py（忠實性 >= 0.8、無 EMPTY、無 VACUUM_ONLY）
+# 判準為 2026-09-23 修正版：SKIPPED 不計入失敗，見 decisions.md
+########## run-A-L1-01 ##########
+
+tests/test_ai_matrix.py
+  測試函式 10 條｜忠實性 83%｜閘門 3 FAIL
+  strict 15｜vacuum 3
+  ✗ VACUUM_ONLY  test_calculate_execution_and_return_types（第 55 行）只有 vacuum，沒有一條在比數字
+  − SKIPPED      test_calculate_math_formula（第 78 行）以 skip 宣告跳過，pytest 不報綠
+  − SKIPPED      test_calculate_inflation（第 83 行）以 skip 宣告跳過，pytest 不報綠
+  − SKIPPED      test_calculate_pension_incomes（第 88 行）以 skip 宣告跳過，pytest 不報綠
+  − SKIPPED      test_calculate_lump_sums_handling（第 93 行）以 skip 宣告跳過，pytest 不報綠
+  − SKIPPED      test_calculate_balances_length（第 98 行）以 skip 宣告跳過，pytest 不報綠
+  − SKIPPED      test_calculate_edge_cases（第 103 行）以 skip 宣告跳過，pytest 不報綠
+########## run-A-L1-02 ##########
+
+tests/test_ai_matrix.py
+  測試函式 8 條｜忠實性 100%｜閘門 3 PASS
+  strict 23
+  − SKIPPED      test_calculate_projected_savings（第 67 行）以 skip 宣告跳過，pytest 不報綠
+  − SKIPPED      test_calculate_target_fund（第 75 行）以 skip 宣告跳過，pytest 不報綠
+  − SKIPPED      test_calculate_retirement_gap（第 83 行）以 skip 宣告跳過，pytest 不報綠
+  − SKIPPED      test_calculate_balances（第 90 行）以 skip 宣告跳過，pytest 不報綠
+  − SKIPPED      test_calculate_lump_sums_impact（第 98 行）以 skip 宣告跳過，pytest 不報綠
+########## run-A-L1-03 ##########
+
+tests/test_ai_matrix.py
+  測試函式 13 條｜忠實性 67%｜閘門 3 FAIL
+  strict 12｜contract 2｜vacuum 6
+  ✗ VACUUM_ONLY  test_calculate_interface（第 62 行）只有 vacuum，沒有一條在比數字
+  − SKIPPED      test_projected_savings_calculation（第 77 行）以 skip 宣告跳過，pytest 不報綠
+  − SKIPPED      test_target_fund_calculation（第 82 行）以 skip 宣告跳過，pytest 不報綠
+  − SKIPPED      test_retirement_gap_logic（第 87 行）以 skip 宣告跳過，pytest 不報綠
+  − SKIPPED      test_balances_raw_format（第 92 行）以 skip 宣告跳過，pytest 不報綠
+  − SKIPPED      test_balances_charted_format（第 97 行）以 skip 宣告跳過，pytest 不報綠
+  − SKIPPED      test_lump_sums_integration（第 102 行）以 skip 宣告跳過，pytest 不報綠
+  − SKIPPED      test_labor_pension_and_insurance_logic（第 107 行）以 skip 宣告跳過，pytest 不報綠
+  − SKIPPED      test_edge_case_zero_rates（第 112 行）以 skip 宣告跳過，pytest 不報綠
+  − SKIPPED      test_edge_case_current_age_equals_retirement_age（第 117 行）以 skip 宣告跳過，pytest 不報綠
+########## run-A-L1-04 ##########
+
+tests/test_ai_matrix.py
+  測試函式 9 條｜忠實性 17%｜閘門 3 FAIL
+  strict 2｜relational 3｜weak 1｜vacuum 9｜structural 1
+  ✗ VACUUM_ONLY  test_calculate_returns_expected_types（第 12 行）只有 vacuum，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_calculate_with_all_params_populated（第 31 行）只有 vacuum，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_balances_charted_logic（第 184 行）只有 weak，沒有一條在比數字
+########## run-A-L1-05 ##########
+
+tests/test_ai_matrix.py
+  測試函式 9 條｜忠實性 56%｜閘門 3 FAIL
+  strict 10｜weak 2｜vacuum 6｜structural 2
+  ✗ VACUUM_ONLY  test_result_structure（第 12 行）只有 vacuum，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_typical_scenario_with_returns（第 175 行）只有 weak，沒有一條在比數字
+########## run-A-pro-01 ##########
+
+tests/test_ai_matrix.py
+  測試函式 12 條｜忠實性 100%｜閘門 3 PASS
+  strict 10｜contract 2｜structural 2
+  − SKIPPED      test_ui_labels（第 265 行）以 skip 宣告跳過，pytest 不報綠
+########## run-A-pro-02 ##########
+
+tests/test_ai_matrix.py
+  測試函式 12 條｜忠實性 100%｜閘門 3 PASS
+  strict 8｜contract 1｜structural 2
+  − SKIPPED      test_prd_11_ui_labels（第 243 行）以 skip 宣告跳過，pytest 不報綠
+  − SKIPPED      test_other_income_ambiguity（第 248 行）以 skip 宣告跳過，pytest 不報綠
+  − SKIPPED      test_balances_raw_exact_trajectory（第 253 行）以 skip 宣告跳過，pytest 不報綠
+########## run-A-pro-03 ##########
+
+tests/test_ai_matrix.py
+  測試函式 9 條｜忠實性 89%｜閘門 3 PASS
+  strict 8｜contract 1｜weak 1｜structural 1
+  − SKIPPED      test_prd11_currency_value_display（第 234 行）以 skip 宣告跳過，pytest 不報綠
+########## run-A-pro-04 ##########
+
+tests/test_ai_matrix.py
+  測試函式 9 條｜忠實性 100%｜閘門 3 PASS
+  strict 9｜contract 3｜structural 2
+########## run-A-pro-05 ##########
+
+tests/test_ai_matrix.py
+  測試函式 8 條｜忠實性 100%｜閘門 3 PASS
+  strict 15｜contract 6｜structural 3
+  − SKIPPED      test_prd_11_ui_markers（第 278 行）以 skip 宣告跳過，pytest 不報綠
+########## run-B-L1-01 ##########
+
+tests/test_ai_matrix.py
+  測試函式 27 條｜忠實性 43%｜閘門 3 FAIL
+  strict 13｜contract 3｜relational 18｜weak 6｜vacuum 11｜structural 4
+  ✗ EMPTY        test_current_age_greater_equal_retirement_age（第 277 行）什麼都沒驗，pytest 照樣綠
+  ✗ EMPTY        test_retirement_age_greater_equal_life_expectancy（第 286 行）什麼都沒驗，pytest 照樣綠
+  ✗ VACUUM_ONLY  test_result_fields_types（第 76 行）只有 vacuum，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_charted_balances_property（第 104 行）只有 weak，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_zero_return_rates（第 262 行）只有 vacuum，沒有一條在比數字
+  − SKIPPED      test_exact_compounding_formula_verification（第 291 行）以 skip 宣告跳過，pytest 不報綠
+########## run-B-L1-02 ##########
+
+tests/test_ai_matrix.py
+  測試函式 24 條｜忠實性 65%｜閘門 3 FAIL
+  strict 15｜contract 7｜relational 10｜vacuum 8｜structural 5
+########## run-B-L1-03 ##########
+
+tests/test_ai_matrix.py
+  測試函式 21 條｜忠實性 4%｜閘門 3 FAIL
+  strict 1｜contract 1｜relational 9｜weak 1｜vacuum 21｜structural 5
+  ✗ VACUUM_ONLY  test_calculate_returns_result_instance（第 48 行）只有 vacuum，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_result_fields_exist_and_types（第 55 行）只有 vacuum，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_result_numeric_values_are_finite（第 66 行）只有 vacuum，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_multiple_lump_sums_handling（第 249 行）只有 vacuum，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_zero_initial_savings_and_investment（第 305 行）只有 vacuum，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_balances_charted_clamped_to_zero_when_balance_negative（第 348 行）只有 weak，沒有一條在比數字
+  − SKIPPED      test_skip_undocumented_exact_future_value_formula（第 410 行）以 skip 宣告跳過，pytest 不報綠
+########## run-B-L1-04 ##########
+
+tests/test_ai_matrix.py
+  測試函式 19 條｜忠實性 32%｜閘門 3 FAIL
+  strict 11｜contract 5｜relational 4｜flag 1｜weak 3｜vacuum 20｜structural 6
+  ✗ VACUUM_ONLY  test_calculate_returns_result_instance（第 44 行）只有 vacuum，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_result_fields_types（第 50 行）只有 vacuum，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_zero_savings_and_zero_investment（第 221 行）只有 vacuum、weak，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_zero_rates_and_inflation（第 236 行）只有 vacuum，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_immediate_retirement（第 255 行）只有 vacuum、weak，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_empty_and_multiple_lump_sums（第 271 行）只有 vacuum，沒有一條在比數字
+  − SKIPPED      test_spec_annuity_timing_formula（第 384 行）以 skip 宣告跳過，pytest 不報綠
+  ? OPAQUE       test_spec_balances_charted_clips_negative_values（第 330 行）邏輯在斷言之前，本檔無法判定
+########## run-B-L1-05 ##########
+
+tests/test_ai_matrix.py
+  測試函式 20 條｜忠實性 13%｜閘門 3 FAIL
+  strict 4｜contract 1｜relational 7｜vacuum 26｜structural 5
+  ✗ VACUUM_ONLY  test_calculate_returns_result_instance（第 48 行）只有 vacuum，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_result_scalar_fields_are_finite_floats（第 54 行）只有 vacuum，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_multiple_lump_sums_handling（第 184 行）只有 vacuum，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_pension_and_other_incomes_execution（第 199 行）只有 vacuum，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_zero_rate_environment（第 247 行）只有 vacuum，沒有一條在比數字
+  ✗ VACUUM_ONLY  test_boundary_retirement_age_equals_life_expectancy（第 278 行）只有 vacuum，沒有一條在比數字
+########## run-B-pro-01 ##########
+
+tests/test_ai_matrix.py
+  測試函式 25 條｜忠實性 91%｜閘門 3 PASS
+  strict 21｜contract 3｜relational 2｜vacuum 2｜structural 7
+  − SKIPPED      test_prd11_ui_currency_label_marking（第 573 行）以 skip 宣告跳過，pytest 不報綠
+########## run-B-pro-02 ##########
+
+tests/test_ai_matrix.py
+  測試函式 26 條｜忠實性 77%｜閘門 3 FAIL
+  strict 20｜contract 6｜relational 1｜vacuum 6｜structural 4
+  ✗ VACUUM_ONLY  test_result_structure_and_types（第 619 行）只有 vacuum，沒有一條在比數字
+  − SKIPPED      test_prd11_ui_label_specification（第 610 行）以 skip 宣告跳過，pytest 不報綠
+########## run-B-pro-03 ##########
+
+tests/test_ai_matrix.py
+  測試函式 27 條｜忠實性 76%｜閘門 3 FAIL
+  strict 22｜contract 3｜relational 1｜weak 1｜vacuum 6｜structural 6
+  − SKIPPED      test_prd11_ui_labels_presentation_layer（第 603 行）以 skip 宣告跳過，pytest 不報綠
+########## run-B-pro-04 ##########
+
+tests/test_ai_matrix.py
+  測試函式 21 條｜忠實性 95%｜閘門 3 PASS
+  strict 19｜contract 2｜relational 1｜weak 1｜structural 3
+########## run-B-pro-05 ##########
+
+tests/test_ai_matrix.py
+  測試函式 25 條｜忠實性 72%｜閘門 3 FAIL
+  strict 21｜contract 3｜vacuum 8｜structural 4
+  ✗ VACUUM_ONLY  test_result_structure_and_types（第 491 行）只有 vacuum，沒有一條在比數字
+  − SKIPPED      test_prd11_ui_currency_labels（第 480 行）以 skip 宣告跳過，pytest 不報綠

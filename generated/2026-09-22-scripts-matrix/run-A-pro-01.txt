@@ -1,0 +1,266 @@
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "shadow"))
+
+from calc_fixed import LumpSum, Params, Result, calculate  # noqa: E402
+
+
+def expected_projected_savings(p: Params) -> float:
+    months = (p.retirement_age - p.current_age) * 12
+    r_monthly = p.pre_retirement_return / 12
+    if r_monthly == 0:
+        return p.current_savings + p.monthly_investment * months
+    
+    fv_savings = p.current_savings * ((1 + r_monthly) ** months)
+    fv_investment = p.monthly_investment * (((1 + r_monthly) ** months - 1) / r_monthly)
+    return fv_savings + fv_investment
+
+
+def get_gaps(p: Params) -> list[float]:
+    gaps = []
+    for t in range(p.retirement_age, p.life_expectancy + 1):
+        # Expenses (PRD-02, PRD-08)
+        exp_today = p.monthly_expense_today * 12 + p.annual_recurring_expense
+        exp_t = exp_today * ((1 + p.inflation_rate) ** (t - p.current_age))
+        
+        # Lump sums (PRD-05)
+        for ls in p.lump_sums:
+            if ls.age == t:
+                exp_t += ls.amount * ((1 + p.inflation_rate) ** (t - p.current_age))
+                
+        # Incomes (PRD-06, PRD-07, PRD-10)
+        inc_t = 0.0
+        if p.labor_insurance_start_age > 0 and t >= p.labor_insurance_start_age:
+            inc_t += p.labor_insurance_pension * 12 * ((1 + p.inflation_rate) ** (t - p.labor_insurance_start_age))
+        if p.labor_pension_start_age > 0 and t >= p.labor_pension_start_age:
+            inc_t += p.labor_pension_monthly * 12 * ((1 + p.inflation_rate) ** (t - p.labor_pension_start_age))
+            
+        # Other income assumed annual and locked to A_c (tested via xfail separately)
+        inc_t += p.other_income * ((1 + p.inflation_rate) ** (t - p.current_age))
+        
+        # PRD-09: Net expense lower bound
+        gaps.append(max(0.0, exp_t - inc_t))
+    return gaps
+
+
+def expected_target_fund(p: Params) -> float:
+    gaps = get_gaps(p)
+    target = 0.0
+    for k, gap in enumerate(gaps):
+        # PRD-02: Annuity Due, discounted back to A_r
+        target += gap / ((1 + p.post_retirement_return) ** k)
+    return target
+
+
+def test_projected_savings_normal():
+    p = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=85,
+        current_savings=1_000_000,
+        monthly_investment=10_000,
+        monthly_expense_today=50_000,
+        pre_retirement_return=0.06
+    )
+    res = calculate(p)
+    assert res.projected_savings == pytest.approx(expected_projected_savings(p), rel=1e-5)
+
+
+def test_projected_savings_zero_return():
+    p = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=85,
+        current_savings=1_000_000,
+        monthly_investment=10_000,
+        monthly_expense_today=50_000,
+        pre_retirement_return=0.0
+    )
+    res = calculate(p)
+    assert res.projected_savings == pytest.approx(expected_projected_savings(p), rel=1e-5)
+
+
+def test_target_fund_and_gap_basic():
+    p = Params(
+        current_age=50,
+        retirement_age=60,
+        life_expectancy=65,
+        current_savings=500_000,
+        monthly_investment=5_000,
+        monthly_expense_today=30_000,
+        annual_recurring_expense=40_000,
+        pre_retirement_return=0.05,
+        post_retirement_return=0.04,
+        inflation_rate=0.02
+    )
+    res = calculate(p)
+    expected_target = expected_target_fund(p)
+    expected_savings = expected_projected_savings(p)
+    
+    assert res.target_fund == pytest.approx(expected_target, rel=1e-5)
+    assert res.retirement_gap == pytest.approx(expected_target - expected_savings, rel=1e-5)
+
+
+def test_lump_sums_inclusion_and_inflation():
+    p = Params(
+        current_age=50,
+        retirement_age=60,
+        life_expectancy=65,
+        current_savings=0,
+        monthly_investment=0,
+        monthly_expense_today=10_000,
+        lump_sums=(
+            LumpSum(age=59, amount=100_000),  # Excluded (before retirement)
+            LumpSum(age=60, amount=200_000),  # Included
+            LumpSum(age=62, amount=300_000),  # Included
+            LumpSum(age=66, amount=400_000),  # Excluded (beyond life expectancy)
+        ),
+        pre_retirement_return=0.0,
+        post_retirement_return=0.04,
+        inflation_rate=0.02
+    )
+    res = calculate(p)
+    assert res.target_fund == pytest.approx(expected_target_fund(p), rel=1e-5)
+
+
+def test_incomes_labor_pension_and_insurance():
+    p = Params(
+        current_age=50,
+        retirement_age=60,
+        life_expectancy=65,
+        current_savings=0,
+        monthly_investment=0,
+        monthly_expense_today=50_000,
+        labor_insurance_pension=20_000,
+        labor_insurance_start_age=62,
+        labor_pension_monthly=10_000,
+        labor_pension_start_age=60,
+        pre_retirement_return=0.04,
+        post_retirement_return=0.03,
+        inflation_rate=0.02
+    )
+    res = calculate(p)
+    assert res.target_fund == pytest.approx(expected_target_fund(p), rel=1e-5)
+
+
+def test_net_expense_lower_bound():
+    p = Params(
+        current_age=50,
+        retirement_age=60,
+        life_expectancy=65,
+        current_savings=0,
+        monthly_investment=0,
+        monthly_expense_today=10_000,
+        labor_insurance_pension=50_000,  # Income far exceeds expense
+        labor_insurance_start_age=60,
+        pre_retirement_return=0.04,
+        post_retirement_return=0.04,
+        inflation_rate=0.02
+    )
+    res = calculate(p)
+    assert res.target_fund == pytest.approx(0.0, abs=1e-5)
+
+
+def test_balances_trajectory_length_and_chart_fidelity():
+    p = Params(
+        current_age=55,
+        retirement_age=60,
+        life_expectancy=65,
+        current_savings=1_000_000,
+        monthly_investment=10_000,
+        monthly_expense_today=30_000,
+        pre_retirement_return=0.05,
+        post_retirement_return=0.03,
+        inflation_rate=0.02
+    )
+    res = calculate(p)
+    
+    expected_len = p.life_expectancy - p.retirement_age + 1
+    assert len(res.balances_raw) == expected_len
+    assert res.balances_charted == res.balances_raw
+
+
+def test_balances_negative_no_truncation():
+    p = Params(
+        current_age=55,
+        retirement_age=60,
+        life_expectancy=65,
+        current_savings=0,
+        monthly_investment=0,
+        monthly_expense_today=100_000,
+        pre_retirement_return=0.0,
+        post_retirement_return=0.0,
+        inflation_rate=0.0
+    )
+    res = calculate(p)
+    
+    assert any(b < 0 for b in res.balances_raw)
+    assert res.balances_charted == res.balances_raw
+
+
+@pytest.mark.parametrize("invalid_kwargs", [
+    {"current_age": 0},
+    {"current_age": -5},
+    {"current_age": 60, "retirement_age": 60},
+    {"current_age": 65, "retirement_age": 60},
+    {"retirement_age": 70, "life_expectancy": 70},
+    {"retirement_age": 75, "life_expectancy": 70},
+    {"current_savings": -100},
+    {"monthly_investment": -50},
+    {"monthly_expense_today": -10},
+])
+def test_input_validation_errors(invalid_kwargs):
+    valid_params = dict(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=85,
+        current_savings=1_000_000,
+        monthly_investment=10_000,
+        monthly_expense_today=50_000,
+    )
+    valid_params.update(invalid_kwargs)
+    p = Params(**valid_params)
+    
+    with pytest.raises(Exception):
+        calculate(p)
+
+
+def test_input_validation_lump_sum_negative():
+    p = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=85,
+        current_savings=1_000_000,
+        monthly_investment=10_000,
+        monthly_expense_today=50_000,
+        lump_sums=(LumpSum(age=65, amount=-1000),)
+    )
+    with pytest.raises(Exception):
+        calculate(p)
+
+
+@pytest.mark.xfail(reason="PRD-10 specifies other_income locks to A_c, but doesn't explicitly state if amount is monthly or annual. Assumed annual here.")
+def test_other_income_annual_assumption():
+    p = Params(
+        current_age=50,
+        retirement_age=60,
+        life_expectancy=65,
+        current_savings=0,
+        monthly_investment=0,
+        monthly_expense_today=50_000,
+        other_income=100_000,
+        pre_retirement_return=0.0,
+        post_retirement_return=0.04,
+        inflation_rate=0.02
+    )
+    res = calculate(p)
+    assert res.target_fund == pytest.approx(expected_target_fund(p), rel=1e-5)
+
+
+@pytest.mark.skip(reason="PRD-11 is a UI/Interface layer requirement for labeling, no core calculation logic to test.")
+def test_ui_labels():
+    pass

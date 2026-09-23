@@ -44,14 +44,42 @@ Day 14 自己寫過「方向性測試對任何保持單調的錯誤結構性地�
 總數依然大於零。每條函式給一個判定：
 
 - `EMPTY`        一條斷言都沒有，pytest 照樣綠
+- `SKIPPED`      一條斷言都沒有，但整條函式被 `skip` 宣告掉——pytest 報的是
+                 SKIPPED 而不是綠。2026-09-23 修正，見下方〈為什麼要拆出 SKIPPED〉
 - `OK`           至少有一條 `strict`／`contract`／`relational`
 - `OPAQUE`       只有 `flag`：邏輯在斷言之前，本檔無法判定
 - `VACUUM_ONLY`  其餘——有寫斷言，但沒有一條在約束任何東西
 
+為什麼要拆出 SKIPPED（2026-09-23 修正）
+-----------------------------------
+初版把「沒有任何斷言」一律判 `EMPTY`，訊息寫「pytest 照樣綠」。
+**那句話對被 `skip` 宣告掉的函式是假的**——pytest 報的是 SKIPPED，
+獨立一欄，帶著 reason 字串，不會混進 passed 裡。
+
+這個錯能活到今天，是因為 repo 裡九個測試檔、Day 21 三份產物，
+用到 `skip` 的是零。沒有任何輸入逼模型說過「我不知道」。
+Day 22 把規格降到一句話之後，產物開始大量宣告規格缺口，
+這條路徑才第一次被走到——**實驗的自變數本身揭開了量具的缺陷**。
+
+判別三分，界線畫在「pytest 到底報什麼」：
+
+- 有 `@pytest.mark.skip`／`skipif`，或函式本體第一句就是 `pytest.skip(...)`
+  → `SKIPPED`。pytest 必定報 SKIPPED，不計入閘門 3 失敗。
+- `pytest.skip()` 藏在 `if`／`except` 裡 → 仍判 `EMPTY`。
+  條件不成立時它真的會變綠，**工具不猜**。
+- 其餘（本體只有 `pass` 或 docstring）→ `EMPTY`，照舊。
+
+忠實性門檻 0.8 與 `VACUUM_ONLY` 一個字都沒動。
+那兩個沒有第一性原理支撐，動它們就是調參。
+本次修正只改一處，而且這條規則不看任何一份產物也寫得出來：
+**pytest 報成 SKIPPED 的函式，不是靜默變綠的函式。**
+
+既有檔案無一使用 `skip`，故本次修正不改動任何已發表的數字。
+
 誰驗收這支
 ---------
 檔尾 `_self_check()` 的 KAT 是人先寫下答案、再讓程式去對的：
-20 條斷言與 4 種函式判定，全部手寫預期分類。不符即 `SystemExit`。
+斷言分類與 5 種函式判定，全部手寫預期分類。不符即 `SystemExit`。
 另外掃描目標若解析到零條測試函式，本檔拒絕印出任何比值——
 Day 14 那次「跑零條測試卻回報最聳動結論」不可以再發生一次。
 
@@ -108,11 +136,12 @@ class FunctionReport:
     name: str
     line: int
     findings: list[Finding] = field(default_factory=list)
+    skip: str = ""          # "declared"｜"conditional"｜""
 
     @property
     def verdict(self) -> str:
         if not self.findings:
-            return "EMPTY"
+            return "SKIPPED" if self.skip == "declared" else "EMPTY"
         if any(f.is_binding for f in self.findings):
             return "OK"
         if any(f.kind == "flag" for f in self.findings):
@@ -308,11 +337,28 @@ class _FunctionScanner(ast.NodeVisitor):
         return  # 內層函式不併入外層
 
 
+def _skip_kind(node: ast.FunctionDef) -> str:
+    """回傳 "declared"／"conditional"／""。界線是「pytest 必定報 SKIPPED 嗎」。"""
+    for d in node.decorator_list:
+        if "pytest.mark.skip" in ast.unparse(d):
+            return "declared"
+    body = [s for s in node.body
+            if not (isinstance(s, ast.Expr) and isinstance(s.value, ast.Constant))]
+    if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Call) \
+            and "pytest.skip" in _call_name(body[0].value):
+        return "declared"
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Call) and "pytest.skip" in _call_name(sub):
+            return "conditional"
+    return ""
+
+
 def _scan_function(node: ast.FunctionDef) -> FunctionReport:
     scanner = _FunctionScanner(_bool_names(node))
     for stmt in node.body:
         scanner.visit(stmt)
-    return FunctionReport(name=node.name, line=node.lineno, findings=scanner.findings)
+    return FunctionReport(name=node.name, line=node.lineno,
+                          findings=scanner.findings, skip=_skip_kind(node))
 
 
 @dataclass
@@ -347,6 +393,11 @@ class FileReport:
     @property
     def vacuum_only(self) -> list[FunctionReport]:
         return [f for f in self.functions if f.verdict == "VACUUM_ONLY"]
+
+    @property
+    def skipped(self) -> list[FunctionReport]:
+        """宣告式跳過——不計入不合格，但必須列出來讓人去看它宣告了什麼。"""
+        return [f for f in self.functions if f.verdict == "SKIPPED"]
 
     @property
     def opaque(self) -> list[FunctionReport]:
@@ -392,6 +443,8 @@ def report(fr: FileReport) -> None:
     for fn in fr.vacuum_only:
         kinds = "、".join(sorted({f.kind for f in fn.findings}))
         print(f"  ✗ VACUUM_ONLY  {fn.name}（第 {fn.line} 行）只有 {kinds}，沒有一條在比數字")
+    for fn in fr.skipped:
+        print(f"  − SKIPPED      {fn.name}（第 {fn.line} 行）以 skip 宣告跳過，pytest 不報綠")
     for fn in fr.opaque:
         print(f"  ? OPAQUE       {fn.name}（第 {fn.line} 行）邏輯在斷言之前，本檔無法判定")
 
@@ -459,6 +512,29 @@ def test_k19_flag():
 def test_k20_object_truthy():
     result = calculate(p)
     assert result
+
+@pytest.mark.skip(reason="PRD-11 是介面標示需求，計算核心無對應欄位可測")
+def test_k27_decorator_skip():
+    pass
+
+
+def test_k28_body_skip():
+    """規格未定義具體計算公式，無法進行數值驗證"""
+    pytest.skip("規格未定義月／年複利與期初／期末投入，無法斷言數值")
+
+
+def test_k29_conditional_skip():
+    try:
+        res = calculate(p)
+    except Exception as e:
+        pytest.skip(f"實作拋出例外，規格未定義錯誤處理: {e}")
+    assert res is not None
+
+
+def test_k30_skip_but_has_assert():
+    p = Params(current_age=30)
+    pytest.skip("這條其實跳過了，但底下仍寫了一條嚴格斷言")
+    assert p.current_age == 30
 '''
 
 # (函式名, 預期分類序列, 預期函式判定)
@@ -489,6 +565,15 @@ _KAT_EXPECTED: tuple[tuple[str, tuple[str, ...], str], ...] = (
     ("test_k24_is_none",     ("vacuum",),     "VACUUM_ONLY"),
     ("test_k25_empty_collection", ("flag",),  "OPAQUE"),
     ("test_k26_comprehension",    ("flag",),  "OPAQUE"),
+    # ── 2026-09-23 新增：四條 skip 的真實寫法，素材取自 Day 22 的產物 ──
+    # 裝飾器式：pytest 必定報 SKIPPED，不是綠
+    ("test_k27_decorator_skip",   (),         "SKIPPED"),
+    # 本體第一句式：同上。docstring 不算語句
+    ("test_k28_body_skip",        (),         "SKIPPED"),
+    # 藏在 except 裡：實作沒拋例外時它真的會變綠 → 仍判 EMPTY，工具不猜
+    ("test_k29_conditional_skip", ("vacuum",), "VACUUM_ONLY"),
+    # 有 skip 也有斷言：斷言存在就照斷言判，不因 skip 而降級
+    ("test_k30_skip_but_has_assert", ("strict",), "OK"),
 )
 
 
@@ -516,7 +601,7 @@ def _self_check() -> None:
     if problems:
         raise SystemExit("中止：KAT 不符——\n  " + "\n  ".join(problems))
     print(f"KAT {len(_KAT_EXPECTED)} 條全部符合"
-          f"（含 EMPTY／OPAQUE／VACUUM_ONLY／OK 四種判定）")
+          f"（含 EMPTY／SKIPPED／OPAQUE／VACUUM_ONLY／OK 五種判定）")
 
 
 def main(argv: list[str]) -> int:

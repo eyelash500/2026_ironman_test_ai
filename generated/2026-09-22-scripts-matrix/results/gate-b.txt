@@ -1,0 +1,41 @@
+# 關 B：未變異的 calc_fixed 上，該份測試必須全綠
+########## run-A-L1-01 ##########
+4 passed, 6 skipped in 0.03s
+########## run-A-L1-02 ##########
+3 passed, 5 skipped in 0.02s
+########## run-A-L1-03 ##########
+4 passed, 9 skipped in 0.03s
+########## run-A-L1-04 ##########
+1 failed, 4 passed, 4 skipped in 0.04s
+########## run-A-L1-05 ##########
+2 passed, 7 skipped in 0.03s
+########## run-A-pro-01 ##########
+18 passed, 1 skipped, 1 xfailed in 0.05s
+########## run-A-pro-02 ##########
+1 failed, 8 passed, 3 skipped in 0.04s
+########## run-A-pro-03 ##########
+2 failed, 6 passed, 1 skipped in 0.04s
+########## run-A-pro-04 ##########
+8 passed, 1 xpassed in 0.02s
+########## run-A-pro-05 ##########
+4 failed, 3 passed, 1 skipped in 0.06s
+########## run-B-L1-01 ##########
+4 failed, 19 passed, 1 skipped, 2 xfailed, 1 xpassed in 0.10s
+########## run-B-L1-02 ##########
+2 failed, 16 passed, 2 xfailed, 4 xpassed in 0.09s
+########## run-B-L1-03 ##########
+5 failed, 11 passed, 1 skipped, 1 xfailed, 3 xpassed in 0.09s
+########## run-B-L1-04 ##########
+6 failed, 7 passed, 1 skipped, 3 xfailed, 2 xpassed in 0.11s
+########## run-B-L1-05 ##########
+5 failed, 11 passed, 1 xfailed, 3 xpassed in 0.10s
+########## run-B-pro-01 ##########
+37 passed, 1 skipped in 0.07s
+########## run-B-pro-02 ##########
+1 failed, 24 passed, 1 skipped in 0.08s
+########## run-B-pro-03 ##########
+1 failed, 42 passed, 1 skipped in 0.11s
+########## run-B-pro-04 ##########
+6 failed, 26 passed in 0.12s
+########## run-B-pro-05 ##########
+37 passed, 1 skipped in 0.08s
