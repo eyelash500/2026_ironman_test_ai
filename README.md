@@ -39,7 +39,7 @@
 | Day 20 | [第一個變異分數 85.7%，而扣分的兩個都不是斷言的錯](https://ithelp.ithome.com.tw/articles/10414074) | [`day20`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day20) | `generated/2026-09-18-first-mutation-score/manifest.yaml`：預期跑之前封存、逐項判定、兩個存活的驗屍、golden v2 輸入空間的五個缺口 |
 | Day 21 | [補完之後 100%，而那個從 Day 14 掛到現在的欄位還是 0](https://ithelp.ithome.com.tw/articles/10414576) | [`day21`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day21) | `generated/2026-09-21-mutation-feedback/`：反饋提示詞、雙向洩漏掃描、三輪產物與 preflight；`tools/harness.py` 的 `--domain` 可接多個測試檔 |
 
-| Day 22 | 規格只給一句話，寫出來的測試殺掉 0 個變異體 | [`day22`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day22) | `generated/2026-09-22-scripts-matrix/`：L1 vs PRD × 兩臺模型共 20 次生成、貼上檔由程式拼接並自檢、三道關的原始輸出；`tools/leak_scan.py`（雙向洩漏掃描，命中需簽名）；`tools/const_sampler.py`（AST 抽輸入數值，邊界判定沿用 Day 12 的 `bva_checker`）；`tools/harness.py` 新增 `--solo`；`assert_inspector.py` 拆出 `SKIPPED` 判定 |
+| Day 22 | [規格只給一句話，寫出來的測試殺掉 0 個變異體](https://ithelp.ithome.com.tw/articles/10415705) | [`day22`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day22) | `generated/2026-09-22-scripts-matrix/`：L1 vs PRD × 兩臺模型共 20 次生成、貼上檔由程式拼接並自檢、三道關的原始輸出；`tools/leak_scan.py`（雙向洩漏掃描，命中需簽名）；`tools/const_sampler.py`（AST 抽輸入數值，邊界判定沿用 Day 12 的 `bva_checker`）；`tools/harness.py` 新增 `--solo`；`assert_inspector.py` 拆出 `SKIPPED` 判定 |
 
 Day 1–5 沒有 tag，因為 repo 是 Day 6 才建立的——補打只會指到當天並不存在的狀態。
 **寧可留白，不要假的時間戳。**
