@@ -1,0 +1,13 @@
+....F...........F.XxXXXx                                                 [100%]
+=================================== FAILURES ===================================
+E   assert 21 in (55, 56)
+     +  where 21 = len((55186536.763134435, 56375686.47167693, 57592035.93332147, 58836265.813487336, 60109075.85771651, 61411185.491948634, ...))
+     +    where (55186536.763134435, 56375686.47167693, 57592035.93332147, 58836265.813487336, 60109075.85771651, 61411185.491948634, ...) = Result(projected_savings=54023924.64213801, target_fund=16716020.789744617, retirement_gap=-37307903.852393396, balanc...03015, 76217415.20855781, 77895598.25790432, 79613498.35804477, 81372155.98558733, 83172642.272096, 85016060.01100671)).balances_raw
+/Users/tonywu/Documents/source_code/ithome-18/tests/test_ai_matrix.py:91: assert 21 in (55, 56)
+E   ValueError: 大筆支出金額不得為負數
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:91: ValueError: 大筆支出金額不得為負數
+=========================== short test summary info ============================
+FAILED tests/test_ai_matrix.py::TestInterfaceAndContract::test_balances_series_length_consistency
+FAILED tests/test_ai_matrix.py::TestLumpSumScenarios::test_accepts_multiple_lump_sums
+2 failed, 16 passed, 2 xfailed, 4 xpassed in 0.06s
+

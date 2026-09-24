@@ -1,0 +1,8 @@
+....F....sss                                                             [100%]
+=================================== FAILURES ===================================
+E   ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:70: ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+=========================== short test summary info ============================
+FAILED tests/test_ai_matrix.py::test_prd_05_lump_sum_inflation - ValueError: ...
+1 failed, 8 passed, 3 skipped in 0.03s
+

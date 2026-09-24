@@ -1,0 +1,32 @@
+....F.....FFFF..xXXXs                                                    [100%]
+=================================== FAILURES ===================================
+E   assert 21 in (55, 56)
+     +  where 21 = len((43507934.05905881, 44484517.599934, 45484889.806014456, 46509696.73037979, 47559604.15836223, 48635298.27463932, ...))
+     +    where (43507934.05905881, 44484517.599934, 45484889.806014456, 46509696.73037979, 47559604.15836223, 48635298.27463932, ...) = Result(projected_savings=42554512.218822725, target_fund=12537015.592308465, retirement_gap=-30017496.62651426, balanc...7, 60977516.45686425, 62388731.94589197, 63835838.351095855, 65319860.155055255, 66841854.59657134, 68402912.81645435)).balances_raw
+/Users/tonywu/Documents/source_code/ithome-18/tests/test_ai_matrix.py:99: assert 21 in (55, 56)
+E   assert 42554512.218822725 > 42554512.218822725
+     +  where 42554512.218822725 = Result(projected_savings=42554512.218822725, target_fund=12537015.592308465, retirement_gap=-30017496.62651426, balanc...7, 60977516.45686425, 62388731.94589197, 63835838.351095855, 65319860.155055255, 66841854.59657134, 68402912.81645435)).projected_savings
+     +  and   42554512.218822725 = Result(projected_savings=42554512.218822725, target_fund=12537015.592308465, retirement_gap=-30017496.62651426, balanc...7, 60977516.45686425, 62388731.94589197, 63835838.351095855, 65319860.155055255, 66841854.59657134, 68402912.81645435)).projected_savings
+/Users/tonywu/Documents/source_code/ithome-18/tests/test_ai_matrix.py:227: assert 42554512.218822725 > 42554512.218822725
+E   ValueError: 大筆支出金額不得為負數
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:91: ValueError: 大筆支出金額不得為負數
+E   ValueError: 大筆支出金額不得為負數
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:91: ValueError: 大筆支出金額不得為負數
+E   assert (21 == (85 - 35) or 21 == ((85 - 35) + 1))
+     +  where 21 = len((32911677.50150689, 33304817.480176613, 33694896.39954704, 34081451.04637271, 34463995.02647413, 34842017.83719635, ...))
+     +    where (32911677.50150689, 33304817.480176613, 33694896.39954704, 34081451.04637271, 34463995.02647413, 34842017.83719635, ...) = Result(projected_savings=32515917.39087857, target_fund=11262980.822802074, retirement_gap=-21252936.568076495, balanc...94, 38242000.554972775, 38528666.81645214, 38802418.22189664, 39062329.45452825, 39307433.99128817, 39536722.53047899)).balances_raw
+     +  and   85 = Params(current_age=35, retirement_age=65, life_expectancy=85, current_savings=1000000.0, monthly_investment=20000.0, m...=65, other_income=10000.0, pre_retirement_return=0.07, post_retirement_return=0.03, inflation_rate=0.025, lump_sums=()).life_expectancy
+     +  and   35 = Params(current_age=35, retirement_age=65, life_expectancy=85, current_savings=1000000.0, monthly_investment=20000.0, m...=65, other_income=10000.0, pre_retirement_return=0.07, post_retirement_return=0.03, inflation_rate=0.025, lump_sums=()).current_age
+     +  and   21 = len((32911677.50150689, 33304817.480176613, 33694896.39954704, 34081451.04637271, 34463995.02647413, 34842017.83719635, ...))
+     +    where (32911677.50150689, 33304817.480176613, 33694896.39954704, 34081451.04637271, 34463995.02647413, 34842017.83719635, ...) = Result(projected_savings=32515917.39087857, target_fund=11262980.822802074, retirement_gap=-21252936.568076495, balanc...94, 38242000.554972775, 38528666.81645214, 38802418.22189664, 39062329.45452825, 39307433.99128817, 39536722.53047899)).balances_raw
+     +  and   85 = Params(current_age=35, retirement_age=65, life_expectancy=85, current_savings=1000000.0, monthly_investment=20000.0, m...=65, other_income=10000.0, pre_retirement_return=0.07, post_retirement_return=0.03, inflation_rate=0.025, lump_sums=()).life_expectancy
+     +  and   35 = Params(current_age=35, retirement_age=65, life_expectancy=85, current_savings=1000000.0, monthly_investment=20000.0, m...=65, other_income=10000.0, pre_retirement_return=0.07, post_retirement_return=0.03, inflation_rate=0.025, lump_sums=()).current_age
+/Users/tonywu/Documents/source_code/ithome-18/tests/test_ai_matrix.py:295: assert (21 == (85 - 35) or 21 == ((85 - 35) + 1))
+=========================== short test summary info ============================
+FAILED tests/test_ai_matrix.py::test_balances_length_corresponds_to_age_span
+FAILED tests/test_ai_matrix.py::test_lump_sum_positive_inflow_increases_savings
+FAILED tests/test_ai_matrix.py::test_lump_sum_negative_outflow_decreases_savings
+FAILED tests/test_ai_matrix.py::test_multiple_lump_sums_handling - ValueError...
+FAILED tests/test_ai_matrix.py::test_full_pension_configuration - assert (21 ...
+5 failed, 11 passed, 1 skipped, 1 xfailed, 3 xpassed in 0.06s
+

@@ -43,6 +43,8 @@
 
 | Day 23 | [它準確地打在邊界上，然後把期望寫反了](https://ithelp.ithome.com.tw/articles/10416285) | [`day23`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day23) | `tools/const_sampler.py`（AST 抽輸入數值、分年齡／金額／比率三群、整數偏好與邊界命中，邊界判定沿用 Day 12 的 `bva_checker`，8 條 KAT，抽到 0 個輸入即中止）；`generated/2026-09-23-boundary-goodhart/`：人工基準線先於 AI 腳本量測、逐格彙總 `rollup.py` 與四條限制 |
 
+| Day 24 | AI 寫下那個數字的時候，沒有人在旁邊 | [`day24`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day24) | `tools/failure_classifier.py`（把測試失敗分成「期望值算錯」與「餵錯輸入」，11 條 KAT，兩道守衛：解析數與 pytest 自報數對帳、抽到 0 條即中止）；`generated/2026-09-24-oracle-problem/`：Day 22 十二份紅產物的逐條分類、去重前後兩個分母、原始 pytest 輸出 |
+
 Day 1–5 沒有 tag，因為 repo 是 Day 6 才建立的——補打只會指到當天並不存在的狀態。
 **寧可留白，不要假的時間戳。**
 

@@ -1,0 +1,23 @@
+....F.F..F.................F.FF.                                         [100%]
+=================================== FAILURES ===================================
+E   ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:70: ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+E   ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:70: ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+E   ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:70: ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+E   ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:70: ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+E   ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:70: ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+E   ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:70: ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+=========================== short test summary info ============================
+FAILED tests/test_ai_matrix.py::TestTargetFundAndDiscountingPRD02::test_annuity_due_single_year
+FAILED tests/test_ai_matrix.py::TestTargetFundAndDiscountingPRD02::test_inflation_anchored_at_current_age
+FAILED tests/test_ai_matrix.py::TestTrajectoryFidelityPRD03PRD12::test_trajectory_step_consistency_zero_return
+FAILED tests/test_ai_matrix.py::TestPensionsAndIndexationPRD06PRD07PRD10::test_pension_inflation_anchored_at_own_start_age
+FAILED tests/test_ai_matrix.py::TestRecurringExpenseAndNetExpensePRD08PRD09::test_annual_recurring_expense_combined_with_monthly
+FAILED tests/test_ai_matrix.py::TestRecurringExpenseAndNetExpensePRD08PRD09::test_net_expense_floor_no_surplus_carryover
+6 failed, 26 passed in 0.06s
+

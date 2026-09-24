@@ -1,0 +1,25 @@
+..F.FFFs                                                                 [100%]
+=================================== FAILURES ===================================
+E   assert 17837.01923076923 == 29442.548076923 ± 0.001
+      
+      comparison failed
+      Obtained: 17837.01923076923
+      Expected: 29442.548076923 ± 0.001
+/Users/tonywu/Documents/source_code/ithome-18/tests/test_ai_matrix.py:109: assert 17837.01923076923 == 29442.548076923 ± 0.001
+E   assert 19957.21153846154 == 31562.7403846 ± 0.001
+      
+      comparison failed
+      Obtained: 19957.21153846154
+      Expected: 31562.7403846 ± 0.001
+/Users/tonywu/Documents/source_code/ithome-18/tests/test_ai_matrix.py:197: assert 19957.21153846154 == 31562.7403846 ± 0.001
+E   ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:70: ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+E   ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:70: ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+=========================== short test summary info ============================
+FAILED tests/test_ai_matrix.py::test_prd_02_03_12_drawdown_mechanics - assert...
+FAILED tests/test_ai_matrix.py::test_prd_05_lump_sums - assert 19957.21153846...
+FAILED tests/test_ai_matrix.py::test_prd_06_07_10_pension_before_retirement_and_indexation
+FAILED tests/test_ai_matrix.py::test_prd_08_09_expense_floor_and_combination
+4 failed, 3 passed, 1 skipped in 0.03s
+

@@ -1,0 +1,14 @@
+.....F.Fs                                                                [100%]
+=================================== FAILURES ===================================
+E   assert False
+     +  where False = <built-in function isclose>(21662.041798991526, 43624.12794510851, rel_tol=1e-05)
+     +    where <built-in function isclose> = math.isclose
+     +    and   21662.041798991526 = Result(projected_savings=0.0, target_fund=21662.041798991526, retirement_gap=21662.041798991526, balances_raw=(-8386.0...11.099088712159, -24366.850986180805), balances_charted=(-8386.038207107324, -16111.099088712159, -24366.850986180805)).target_fund
+/Users/tonywu/Documents/source_code/ithome-18/tests/test_ai_matrix.py:186: assert False
+E   ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:70: ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+=========================== short test summary info ============================
+FAILED tests/test_ai_matrix.py::test_prd06_prd07_prd10_income_inflation - ass...
+FAILED tests/test_ai_matrix.py::test_prd03_prd12_balance_trajectory_and_fidelity
+2 failed, 6 passed, 1 skipped in 0.02s
+

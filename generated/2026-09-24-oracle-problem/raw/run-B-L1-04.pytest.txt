@@ -1,0 +1,23 @@
+FFF.F......FFxxxXXs                                                      [100%]
+=================================== FAILURES ===================================
+E   ValueError: 大筆支出金額不得為負數
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:91: ValueError: 大筆支出金額不得為負數
+E   ValueError: 大筆支出金額不得為負數
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:91: ValueError: 大筆支出金額不得為負數
+E   ValueError: 大筆支出金額不得為負數
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:91: ValueError: 大筆支出金額不得為負數
+E   ValueError: 大筆支出金額不得為負數
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:91: ValueError: 大筆支出金額不得為負數
+E   ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:70: ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+E   ValueError: 大筆支出金額不得為負數
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:91: ValueError: 大筆支出金額不得為負數
+=========================== short test summary info ============================
+FAILED tests/test_ai_matrix.py::test_calculate_returns_result_instance - Valu...
+FAILED tests/test_ai_matrix.py::test_result_fields_types - ValueError: 大筆支...
+FAILED tests/test_ai_matrix.py::test_balance_series_elements_are_numeric - Va...
+FAILED tests/test_ai_matrix.py::test_frozen_dataclasses_immutability - ValueE...
+FAILED tests/test_ai_matrix.py::test_immediate_retirement - ValueError: 年齡...
+FAILED tests/test_ai_matrix.py::test_empty_and_multiple_lump_sums - ValueErro...
+6 failed, 7 passed, 1 skipped, 3 xfailed, 2 xpassed in 0.06s
+

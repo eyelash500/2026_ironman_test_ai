@@ -1,0 +1,23 @@
+......F......F...FF....Xxxs                                              [100%]
+=================================== FAILURES ===================================
+E   assert 21 in (55, 56)
+     +  where 21 = len((63658662.70996638, 65186697.456382155, 66755487.35741491, 68366255.29454452, 70020264.91801597, 71718822.11466007, ...))
+     +    where (63658662.70996638, 65186697.456382155, 66755487.35741491, 68366255.29454452, 70020264.91801597, 71718822.11466007, ...) = Result(projected_savings=62170199.59101488, target_fund=16716020.789744617, retirement_gap=-45454178.80127026, balance...364, 91475235.41034144, 93763731.2677593, 96116356.68829393, 98535128.64904645, 101022133.84209348, 103579531.2438041)).balances_raw
+/Users/tonywu/Documents/source_code/ithome-18/tests/test_ai_matrix.py:102: assert 21 in (55, 56)
+E   AttributeError: 'Params' object has no attribute 'target_fund'
+/Users/tonywu/Documents/source_code/ithome-18/tests/test_ai_matrix.py:149: AttributeError: 'Params' object has no attribute 'target_fund'
+E   assert 62170199.59101488 > 62170199.59101488
+     +  where 62170199.59101488 = Result(projected_savings=62170199.59101488, target_fund=16716020.789744617, retirement_gap=-45454178.80127026, balance...364, 91475235.41034144, 93763731.2677593, 96116356.68829393, 98535128.64904645, 101022133.84209348, 103579531.2438041)).projected_savings
+     +  and   62170199.59101488 = Result(projected_savings=62170199.59101488, target_fund=16716020.789744617, retirement_gap=-45454178.80127026, balance...364, 91475235.41034144, 93763731.2677593, 96116356.68829393, 98535128.64904645, 101022133.84209348, 103579531.2438041)).projected_savings
+/Users/tonywu/Documents/source_code/ithome-18/tests/test_ai_matrix.py:175: assert 62170199.59101488 > 62170199.59101488
+E   assert 62170199.59101488 > 62170199.59101488
+     +  where 62170199.59101488 = Result(projected_savings=62170199.59101488, target_fund=16716020.789744617, retirement_gap=-45454178.80127026, balance...364, 91475235.41034144, 93763731.2677593, 96116356.68829393, 98535128.64904645, 101022133.84209348, 103579531.2438041)).projected_savings
+     +  and   62170199.59101488 = Result(projected_savings=62170199.59101488, target_fund=16716020.789744617, retirement_gap=-45454178.80127026, balance...364, 91475235.41034144, 93763731.2677593, 96116356.68829393, 98535128.64904645, 101022133.84209348, 103579531.2438041)).projected_savings
+/Users/tonywu/Documents/source_code/ithome-18/tests/test_ai_matrix.py:183: assert 62170199.59101488 > 62170199.59101488
+=========================== short test summary info ============================
+FAILED tests/test_ai_matrix.py::TestTimelineAndBalanceSeries::test_balances_length_corresponds_to_lifespan
+FAILED tests/test_ai_matrix.py::TestFinancialMonotonicity::test_post_retirement_return_decreases_target_fund
+FAILED tests/test_ai_matrix.py::TestFinancialMonotonicity::test_pre_retirement_lump_sum_increases_savings
+FAILED tests/test_ai_matrix.py::TestFinancialMonotonicity::test_multiple_lump_sums_accumulation
+4 failed, 19 passed, 1 skipped, 2 xfailed, 1 xpassed in 0.07s
+

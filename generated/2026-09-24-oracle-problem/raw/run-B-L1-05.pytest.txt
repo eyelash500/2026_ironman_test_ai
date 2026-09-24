@@ -1,0 +1,26 @@
+..F......FF...FFXxXX                                                     [100%]
+=================================== FAILURES ===================================
+E   AssertionError: balances_raw 長度應為 55 或 56，實際為 21
+    assert 21 in (55, 56)
+     +  where 21 = len((55186536.763134435, 56375686.47167693, 57592035.93332147, 58836265.813487336, 60109075.85771651, 61411185.491948634, ...))
+     +    where (55186536.763134435, 56375686.47167693, 57592035.93332147, 58836265.813487336, 60109075.85771651, 61411185.491948634, ...) = Result(projected_savings=54023924.64213801, target_fund=16716020.789744617, retirement_gap=-37307903.852393396, balanc...03015, 76217415.20855781, 77895598.25790432, 79613498.35804477, 81372155.98558733, 83172642.272096, 85016060.01100671)).balances_raw
+/Users/tonywu/Documents/source_code/ithome-18/tests/test_ai_matrix.py:73: AssertionError: balances_raw 長度應為 55 或 56，實際為 21
+E   AssertionError: 退休前有單筆正向現金流入時，projected_savings 應增加
+    assert 54023924.64213801 > 54023924.64213801
+     +  where 54023924.64213801 = Result(projected_savings=54023924.64213801, target_fund=16716020.789744617, retirement_gap=-37307903.852393396, balanc...03015, 76217415.20855781, 77895598.25790432, 79613498.35804477, 81372155.98558733, 83172642.272096, 85016060.01100671)).projected_savings
+     +  and   54023924.64213801 = Result(projected_savings=54023924.64213801, target_fund=16716020.789744617, retirement_gap=-37307903.852393396, balanc...03015, 76217415.20855781, 77895598.25790432, 79613498.35804477, 81372155.98558733, 83172642.272096, 85016060.01100671)).projected_savings
+/Users/tonywu/Documents/source_code/ithome-18/tests/test_ai_matrix.py:179: AssertionError: 退休前有單筆正向現金流入時，projected_savings 應增加
+E   ValueError: 大筆支出金額不得為負數
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:91: ValueError: 大筆支出金額不得為負數
+E   ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:70: ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+E   ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:70: ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+=========================== short test summary info ============================
+FAILED tests/test_ai_matrix.py::test_result_balances_series_types_and_length
+FAILED tests/test_ai_matrix.py::test_positive_pre_retirement_lump_sum_increases_projected_savings
+FAILED tests/test_ai_matrix.py::test_multiple_lump_sums_handling - ValueError...
+FAILED tests/test_ai_matrix.py::test_boundary_current_age_equals_retirement_age
+FAILED tests/test_ai_matrix.py::test_boundary_retirement_age_equals_life_expectancy
+5 failed, 11 passed, 1 xfailed, 3 xpassed in 0.06s
+

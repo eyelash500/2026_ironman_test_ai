@@ -1,0 +1,8 @@
+...............F.......s..                                               [100%]
+=================================== FAILURES ===================================
+E   ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+/Users/tonywu/Documents/source_code/ithome-18/shadow/calc_fixed.py:70: ValueError: 年齡必須為正整數且 current_age < retirement_age < life_expectancy
+=========================== short test summary info ============================
+FAILED tests/test_ai_matrix.py::TestPRD06PRD07PRD10PensionsAndIncome::test_pension_inflation_locked_to_start_age_not_current_age
+1 failed, 24 passed, 1 skipped in 0.05s
+

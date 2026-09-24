@@ -1,0 +1,72 @@
+KAT 全部通過（11 組）
+
+── run-A-L1-04.txt ──　失敗 1 條（pytest 自報 1 條）
+   第  134 行　期望值算錯 　assert: 8322586.353614661 > 8322586.353614661
+
+── run-A-pro-02.txt ──　失敗 1 條（pytest 自報 1 條）
+   第   70 行　踩到非法輸入　ValueError: 年齡必須為正整數且 current_age < retirement_age < lif
+
+── run-A-pro-03.txt ──　失敗 2 條（pytest 自報 2 條）
+   第  186 行　期望值算錯 　assert: False
+   第   70 行　踩到非法輸入　ValueError: 年齡必須為正整數且 current_age < retirement_age < lif
+
+── run-A-pro-05.txt ──　失敗 4 條（pytest 自報 4 條）
+   第  109 行　期望值算錯 　assert: 17837.01923076923 == 29442.548076923 ± 0.001
+   第  197 行　期望值算錯 　assert: 19957.21153846154 == 31562.7403846 ± 0.001
+   第   70 行　踩到非法輸入　ValueError: 年齡必須為正整數且 current_age < retirement_age < lif
+   第   70 行　踩到非法輸入　ValueError: 年齡必須為正整數且 current_age < retirement_age < lif　（重複）
+
+── run-B-L1-01.txt ──　失敗 4 條（pytest 自報 4 條）
+   第  102 行　期望值算錯 　assert: 21 in (55, 56)
+   第  149 行　介面用錯  　AttributeError: 'Params' object has no attribute 'target_fun
+   第  175 行　期望值算錯 　assert: 62170199.59101488 > 62170199.59101488
+   第  183 行　期望值算錯 　assert: 62170199.59101488 > 62170199.59101488
+
+── run-B-L1-02.txt ──　失敗 2 條（pytest 自報 2 條）
+   第   91 行　期望值算錯 　assert: 21 in (55, 56)
+   第   91 行　踩到非法輸入　ValueError: 大筆支出金額不得為負數
+
+── run-B-L1-03.txt ──　失敗 5 條（pytest 自報 5 條）
+   第   99 行　期望值算錯 　assert: 21 in (55, 56)
+   第  227 行　期望值算錯 　assert: 42554512.218822725 > 42554512.218822725
+   第   91 行　踩到非法輸入　ValueError: 大筆支出金額不得為負數
+   第   91 行　踩到非法輸入　ValueError: 大筆支出金額不得為負數　（重複）
+   第  295 行　期望值算錯 　assert: (21 == (85 - 35) or 21 == ((85 - 35) + 1))
+
+── run-B-L1-04.txt ──　失敗 6 條（pytest 自報 6 條）
+   第   91 行　踩到非法輸入　ValueError: 大筆支出金額不得為負數
+   第   91 行　踩到非法輸入　ValueError: 大筆支出金額不得為負數　（重複）
+   第   91 行　踩到非法輸入　ValueError: 大筆支出金額不得為負數　（重複）
+   第   91 行　踩到非法輸入　ValueError: 大筆支出金額不得為負數　（重複）
+   第   70 行　踩到非法輸入　ValueError: 年齡必須為正整數且 current_age < retirement_age < lif
+   第   91 行　踩到非法輸入　ValueError: 大筆支出金額不得為負數　（重複）
+
+── run-B-L1-05.txt ──　失敗 5 條（pytest 自報 5 條）
+   第   73 行　期望值算錯 　AssertionError: balances_raw 長度應為 55 或 56，實際為 21
+   第  179 行　期望值算錯 　AssertionError: 退休前有單筆正向現金流入時，projected_savings 應增加
+   第   91 行　踩到非法輸入　ValueError: 大筆支出金額不得為負數
+   第   70 行　踩到非法輸入　ValueError: 年齡必須為正整數且 current_age < retirement_age < lif
+   第   70 行　踩到非法輸入　ValueError: 年齡必須為正整數且 current_age < retirement_age < lif　（重複）
+
+── run-B-pro-02.txt ──　失敗 1 條（pytest 自報 1 條）
+   第   70 行　踩到非法輸入　ValueError: 年齡必須為正整數且 current_age < retirement_age < lif
+
+── run-B-pro-03.txt ──　失敗 1 條（pytest 自報 1 條）
+   第   70 行　踩到非法輸入　ValueError: 年齡必須為正整數且 current_age < retirement_age < lif
+
+── run-B-pro-04.txt ──　失敗 6 條（pytest 自報 6 條）
+   第   70 行　踩到非法輸入　ValueError: 年齡必須為正整數且 current_age < retirement_age < lif
+   第   70 行　踩到非法輸入　ValueError: 年齡必須為正整數且 current_age < retirement_age < lif　（重複）
+   第   70 行　踩到非法輸入　ValueError: 年齡必須為正整數且 current_age < retirement_age < lif　（重複）
+   第   70 行　踩到非法輸入　ValueError: 年齡必須為正整數且 current_age < retirement_age < lif　（重複）
+   第   70 行　踩到非法輸入　ValueError: 年齡必須為正整數且 current_age < retirement_age < lif　（重複）
+   第   70 行　踩到非法輸入　ValueError: 年齡必須為正整數且 current_age < retirement_age < lif　（重複）
+
+                  原始 38 條　　去重後 26 條
+      期望值算錯 　 13 條（34%）　　 13 條（50%）
+      踩到非法輸入　 24 條（63%）　　 12 條（46%）
+      介面用錯  　  1 條（ 3%）　　  1 條（ 4%）
+
+去重規則：同一份產物、同一行、同一則訊息只計一次。
+一個壞掉的 fixture 會讓共用它的每一條測試都紅，原始計數把那算成好幾個錯誤——分母灌水，比例就不能看。
+待人工覆核的每一條都要人去看。工具分不出來的，工具不猜。
