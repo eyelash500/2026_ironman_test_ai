@@ -41,6 +41,8 @@
 
 | Day 22 | [規格只給一句話，寫出來的測試殺掉 0 個變異體](https://ithelp.ithome.com.tw/articles/10415705) | [`day22`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day22) | `generated/2026-09-22-scripts-matrix/`：L1 vs PRD × 兩臺模型共 20 次生成、貼上檔由程式拼接並自檢、三道關的原始輸出；`tools/leak_scan.py`（雙向洩漏掃描，命中需簽名）；`tools/const_sampler.py`（AST 抽輸入數值，邊界判定沿用 Day 12 的 `bva_checker`）；`tools/harness.py` 新增 `--solo`；`assert_inspector.py` 拆出 `SKIPPED` 判定 |
 
+| Day 23 | [它準確地打在邊界上，然後把期望寫反了](https://ithelp.ithome.com.tw/articles/10416285) | [`day23`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day23) | `tools/const_sampler.py`（AST 抽輸入數值、分年齡／金額／比率三群、整數偏好與邊界命中，邊界判定沿用 Day 12 的 `bva_checker`，8 條 KAT，抽到 0 個輸入即中止）；`generated/2026-09-23-boundary-goodhart/`：人工基準線先於 AI 腳本量測、逐格彙總 `rollup.py` 與四條限制 |
+
 Day 1–5 沒有 tag，因為 repo 是 Day 6 才建立的——補打只會指到當天並不存在的狀態。
 **寧可留白，不要假的時間戳。**
 
