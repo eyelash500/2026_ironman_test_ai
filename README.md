@@ -38,12 +38,11 @@
 | Day 19 | [十四個變異體，八個有行號八個沒有](https://ithelp.ithome.com.tw/articles/10412938) | [`day19`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day19) | `tools/domain_mutants.py`（14 個領域變異體、逐項證據等級、`audit()` 自檢片段唯一性與變異後語法）；`tools/harness.py` 新增 `--domain` 正式模式 |
 | Day 20 | [第一個變異分數 85.7%，而扣分的兩個都不是斷言的錯](https://ithelp.ithome.com.tw/articles/10414074) | [`day20`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day20) | `generated/2026-09-18-first-mutation-score/manifest.yaml`：預期跑之前封存、逐項判定、兩個存活的驗屍、golden v2 輸入空間的五個缺口 |
 | Day 21 | [補完之後 100%，而那個從 Day 14 掛到現在的欄位還是 0](https://ithelp.ithome.com.tw/articles/10414576) | [`day21`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day21) | `generated/2026-09-21-mutation-feedback/`：反饋提示詞、雙向洩漏掃描、三輪產物與 preflight；`tools/harness.py` 的 `--domain` 可接多個測試檔 |
-
 | Day 22 | [規格只給一句話，寫出來的測試殺掉 0 個變異體](https://ithelp.ithome.com.tw/articles/10415705) | [`day22`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day22) | `generated/2026-09-22-scripts-matrix/`：L1 vs PRD × 兩臺模型共 20 次生成、貼上檔由程式拼接並自檢、三道關的原始輸出；`tools/leak_scan.py`（雙向洩漏掃描，命中需簽名）；`tools/const_sampler.py`（AST 抽輸入數值，邊界判定沿用 Day 12 的 `bva_checker`）；`tools/harness.py` 新增 `--solo`；`assert_inspector.py` 拆出 `SKIPPED` 判定 |
-
 | Day 23 | [它準確地打在邊界上，然後把期望寫反了](https://ithelp.ithome.com.tw/articles/10416285) | [`day23`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day23) | `tools/const_sampler.py`（AST 抽輸入數值、分年齡／金額／比率三群、整數偏好與邊界命中，邊界判定沿用 Day 12 的 `bva_checker`，8 條 KAT，抽到 0 個輸入即中止）；`generated/2026-09-23-boundary-goodhart/`：人工基準線先於 AI 腳本量測、逐格彙總 `rollup.py` 與四條限制 |
+| Day 24 | [AI 寫下那個數字的時候，沒有人在旁邊](https://ithelp.ithome.com.tw/articles/10416809) | [`day24`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day24) | `tools/failure_classifier.py`（把測試失敗分成「期望值算錯」與「餵錯輸入」，11 條 KAT，兩道守衛：解析數與 pytest 自報數對帳、抽到 0 條即中止）；`generated/2026-09-24-oracle-problem/`：Day 22 十二份紅產物的逐條分類、去重前後兩個分母、原始 pytest 輸出 |
 
-| Day 24 | AI 寫下那個數字的時候，沒有人在旁邊 | [`day24`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day24) | `tools/failure_classifier.py`（把測試失敗分成「期望值算錯」與「餵錯輸入」，11 條 KAT，兩道守衛：解析數與 pytest 自報數對帳、抽到 0 條即中止）；`generated/2026-09-24-oracle-problem/`：Day 22 十二份紅產物的逐條分類、去重前後兩個分母、原始 pytest 輸出 |
+| Day 25 | 我寫了四條蛻變關係，三條是廢話 | [`day25`](https://github.com/eyelash500/2026_ironman_test_ai/tree/day25) | `tests/test_metamorphic.py`（四條蛻變關係，不依賴任何期望值）；`tools/mr_audit.py`（拿 Day 19 的十四個變異體逐條驗收關係本身：殺 0 個即判為廢話，3 條 KAT，`-k` 選不到測試時中止）；`tools/harness.py` 的 `run_tests`／`evaluate` 新增 `extra_args`；`generated/2026-09-25-mr-audit/`：事前預測封存、逐條結果、MR-04 在 legacy 上抓到缺陷 A 的驗屍 |
 
 Day 1–5 沒有 tag，因為 repo 是 Day 6 才建立的——補打只會指到當天並不存在的狀態。
 **寧可留白，不要假的時間戳。**

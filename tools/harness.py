@@ -86,7 +86,8 @@ def apply_mutant(project_root: str, rel_source: str, m: Mutant, workdir: str,
 
 
 def run_tests(root_copy: str, rel_tests, project_root: str,
-              timeout_sec: float = 30.0, naive: bool = False) -> Verdict:
+              timeout_sec: float = 30.0, naive: bool = False,
+              extra_args: list[str] | None = None) -> Verdict:
     """在副本裡執行測試，讓測試檔自己的 ROOT 解析到副本。
 
     `rel_tests` 可以是單一路徑，也可以是路徑列表——
@@ -100,7 +101,8 @@ def run_tests(root_copy: str, rel_tests, project_root: str,
         env["PYTHONPATH"] = f"{root_copy}:{env.get('PYTHONPATH', '')}".rstrip(":")
 
     paths = [rel_tests] if isinstance(rel_tests, str) else list(rel_tests)
-    cmd = [sys.executable, "-m", "pytest", *paths, "-q", "-p", "no:cacheprovider"]
+    cmd = [sys.executable, "-m", "pytest", *paths, "-q", "-p", "no:cacheprovider",
+           *(extra_args or [])]
     try:
         proc = subprocess.run(cmd, cwd=cwd, env=env, timeout=timeout_sec,
                               capture_output=True, text=True)
@@ -110,14 +112,16 @@ def run_tests(root_copy: str, rel_tests, project_root: str,
 
 
 def evaluate(project_root: str, rel_source: str, rel_tests: str,
-             mutants, equivalent_ids=None, naive: bool = False) -> dict:
+             mutants, equivalent_ids=None, naive: bool = False,
+             extra_args: list[str] | None = None) -> dict:
     equivalent_ids = set(equivalent_ids or ())
     results: dict[str, Verdict] = {}
     for m in mutants:
         with tempfile.TemporaryDirectory() as tmp:
             try:
                 root_copy = apply_mutant(project_root, rel_source, m, tmp, naive)
-                verdict = run_tests(root_copy, rel_tests, project_root, naive=naive)
+                verdict = run_tests(root_copy, rel_tests, project_root, naive=naive,
+                                    extra_args=extra_args)
             except Exception:                                   # noqa: BLE001
                 verdict = Verdict.ERROR
             results[m.id] = verdict
