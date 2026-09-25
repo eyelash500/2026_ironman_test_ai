@@ -1,0 +1,121 @@
+你是一位資深 Python 測試工程師。下面有一支退休金試算計算核心的介面定義，
+以及它的規格。請寫出一份**蛻變測試（metamorphic test）**。
+
+# 什麼是蛻變測試
+
+不驗單次執行的絕對值，而是驗**多次執行之間的關係**。
+
+不要寫「`target_fund` 應該等於 17837.019」這種斷言——那需要你自己把數字算出來。
+要寫的是「把輸入這樣改，輸出必須那樣變」。
+
+舉一個跟本題無關的例子，只是為了說明形狀。假設有個函式 `sort(xs)`：
+
+    把 xs 的順序打亂 → sort 的結果必須完全相同
+    在 xs 裡多加一個元素 → sort 結果的長度必須剛好多 1
+
+這兩條都不需要知道 `sort(xs)` 到底會回傳什麼，就能判對錯。
+**本題的關係要你自己從下面的規格想出來。**
+
+# 硬性約束（違反任何一條，整份產出作廢）
+
+1. **不得寫死任何期望值。** 測試裡不准出現你自己算出來的計算結果。
+   輸入參數可以寫死，斷言的右手邊必須來自另一次 `calculate()` 的輸出，
+   或是由那次輸出推導出的量（例如乘上一個倍數）。
+2. 不得修改介面：`LumpSum`、`Params`、`Result`、`calculate` 的名稱、欄位與簽名一個字都不能改。
+3. 測試全部寫在一個獨立檔案 `tests/test_ai_mr.py`，可直接以 pytest 執行。
+4. 檔案開頭**逐字使用**以下這段，之後才寫你的測試：
+
+   ```python
+   import sys
+   from pathlib import Path
+
+   import pytest
+
+   ROOT = Path(__file__).resolve().parent.parent
+   sys.path.insert(0, str(ROOT / "shadow"))
+
+   from calc_fixed import LumpSum, Params, Result, calculate  # noqa: E402
+   ```
+
+   除此之外只能 import 標準函式庫。不得 import 本專案其他任何模組，
+   不得讀寫任何外部檔案。
+5. 測試必須在未修改的實作上全部通過。若你認為某個關係規格沒有定義，
+   用 `pytest.skip(reason=...)` 或 `@pytest.mark.xfail` 標示並寫明理由，
+   不要寫一條會失敗的斷言。
+6. 每一條關係前面用註解寫一句話說明：**把輸入怎麼變、輸出該有什麼關係、為什麼**。
+7. 不得詢問、不得要求補充資訊。就以下面給的東西寫。
+
+# 介面
+
+以下為 `shadow/calc_fixed.py` 的介面定義。**函式本體不提供**，
+你看不到它怎麼算——測試要驗的是規格說它該算成什麼樣。
+
+```python
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class LumpSum:
+    age: int                              # A_e
+    amount: float
+
+
+@dataclass(frozen=True)
+class Params:
+    current_age: int                      # A_c
+    retirement_age: int                   # A_r
+    life_expectancy: int                  # A_d
+    current_savings: float
+    monthly_investment: float
+    monthly_expense_today: float
+    annual_recurring_expense: float = 0.0
+
+    labor_insurance_pension: float = 0.0
+    labor_insurance_start_age: int = 0     # A_p
+    labor_pension_monthly: float = 0.0
+    labor_pension_start_age: int = 0       # A_p
+    other_income: float = 0.0
+
+    pre_retirement_return: float = 0.08    # r
+    post_retirement_return: float = 0.04   # r_p
+    inflation_rate: float = 0.02           # i
+    lump_sums: tuple[LumpSum, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class Result:
+    projected_savings: float
+    target_fund: float
+    retirement_gap: float
+    balances_raw: tuple[float, ...]
+    balances_charted: tuple[float, ...]
+
+
+def calculate(p: Params) -> Result:
+    """本次任務不提供實作本體。"""
+    ...
+```
+
+# 規格
+
+以下為本計算核心的完整規格。
+
+| 編號 | 規則 | 內容 | 邊界處置 |
+|---|---|---|---|
+| PRD-01 | 累積期增值 | 本金與月存**統一採名目月利率 `r/12`**，同為月複利；**月存為期末投入**（第一筆發生於第 1 個月月底，共 `(A_r − A_c) × 12` 筆） | `r = 0` 時退化為線性累加 |
+| PRD-02 | 目標金額折現 | **期初年金**，第一期對應退休當年 `A_r`，共 `A_d − A_r + 1` 年；**支出端**通膨基準鎖現齡 `A_c` | `A_d ≤ A_r` 於表單層攔截 |
+| PRD-03 | 提領餘額軌跡 | 期初扣款，索引與 PRD-02 對齊 | **禁止 `Math.max(0, ...)` 截斷真實餘額** |
+| PRD-04 | 輸入校驗 | 年齡為正整數且 `A_c < A_r < A_d`；金額非負 | **禁止靜默補零或整筆丟棄**，須回傳明確錯誤 |
+| PRD-05 | 大筆支出區間 | 僅 `A_r ≤ A_e ≤ A_d` 計入；**輸入金額視為今日幣值，通膨基準鎖 `A_c`**，即第 `A_e` 年的名目額為 `金額 × (1+i)^(A_e − A_c)` | 超出壽命者兩條路徑皆排除，介面標註已忽略 |
+| PRD-06 | 勞保年金 | `t ≥ A_p` 時計入，隨通膨調增 | 未達請領年齡為 0 |
+| PRD-07 | 勞退月領 | 同 PRD-06 | 同 PRD-06 |
+| PRD-08 | 固定年支出 | 與月支出合併，共用同一組通膨指數（鎖 `A_c`） | — |
+| PRD-09 | 淨支出下限 | `max(0, 支出 − 收入)`，盈餘不滾存 | 保守假設，已知並接受 |
+| PRD-10 | 收入指數化 | 退休後收入全額隨通膨調增。**勞保年金、勞退月領的輸入值視為請領當年的名目金額，通膨基準鎖該項自己的請領年齡 `A_p`**，即第 `t` 年為 `月額 × 12 × (1+i)^(t − A_p)`；**其他收入（租金、股利）視為今日幣值，鎖 `A_c`** | 與法規階梯式調整有落差，已標註 |
+| PRD-12 | 圖表餘額保真 | **`balances_charted` 必須逐項等於 `balances_raw`，不得下限截斷。** 圖表要不要顯示負值是呈現層的事，計算核心不得代為隱藏 | 真實餘額為負時照實輸出負值 |
+| PRD-11 | 幣值標示 | **凡輸入欄位的幣值基準年不是「今天」，介面必須標示。** 月支出、固定年支出、大筆支出、其他收入標「以現在幣值估算」；勞保年金、勞退月領標「請領當年金額，勞保局試算結果可直接填入」 | 新增條款 |
+
+# 產出格式
+
+只輸出一個 Python 程式碼區塊，內容是 `tests/test_ai_mr.py` 的完整檔案。
+不要輸出說明、不要輸出前言、不要輸出結尾心得。
