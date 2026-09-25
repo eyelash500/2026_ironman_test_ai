@@ -6,10 +6,15 @@
 
   對的　　「所有金額 ×10 → 目標金額剛好 ×10」
   太弱的　「金額變大 → 目標金額變大」——方向對，約束鬆到抓不到東西
-  廢話的　「目標金額 ≥ 0」——恆真，永遠不會紅
+  恆真的　「目標金額 ≥ 0」——永遠不會紅
 
 肉眼分不出來，因為三者都是綠的。本檔用 Day 19 的十四個領域變異體逐條試：
-**把那條關係單獨拿去跑，它殺得掉幾個？** 殺 0 個的不列入。
+**把那條關係單獨拿去跑，它殺得掉幾個？**
+
+**這把尺只能證實，不能證偽。** 殺得掉，證明那條關係有用；
+殺不掉，只代表這十四種錯法碰不到它——而那十四種是人設計的。
+初版把「殺 0 個」印成「廢話，不列入」，那是把一把已知有盲區的尺
+（Day 20 就寫過「分母換一份目錄，分數就換一個」）當成了真理。
 
 這把尺同時也要量作者自己
 ----------------------
@@ -94,7 +99,7 @@ def audit() -> int:
             if v in (Verdict.KILLED, Verdict.TIMEOUT):
                 hits.append(m.id)
         killed_by[code] = hits
-        verdict = "廢話，不列入" if not hits else f"殺掉 {len(hits)}"
+        verdict = "這批錯法碰不到" if not hits else f"殺掉 {len(hits)}"
         print(f"  {code} {name:<8} {verdict:<12} {'、'.join(hits) if hits else '—'}")
 
     union = sorted({i for v in killed_by.values() for i in v})
@@ -106,12 +111,12 @@ def audit() -> int:
     print(f"沒有任何一條關係抓得到：{'、'.join(missed) if missed else '無'}")
 
     if useless:
-        print(f"\n**廢話關係 {len(useless)} 條：{'、'.join(useless)}**")
-        print("殺不掉任何一個變異體。它們在報表上是綠的，而且永遠會是綠的。")
-    else:
-        print("\n四條關係都殺得掉東西，沒有廢話。")
+        print(f"\n{len(useless)} 條殺不掉任何變異體：{'、'.join(useless)}")
 
-    print("\n殺不掉的不代表關係寫錯，也可能是那種錯法本來就不破壞這個關係。"
+    print("\n**這把尺只能證實，不能證偽。**"
+          "\n殺得掉 → 這條關係有用。"
+          "\n殺不掉 → 只代表這十四種錯法碰不到它，不代表它沒用——"
+          "\n那十四種是人設計的，換一份目錄結論就換一個（Day 20）。"
           "\n每一個都要人工判，工具不猜。")
     return 0
 
