@@ -1,0 +1,30 @@
+# python3 tools/mr_audit_batch.py generated/2026-09-26-ai-metamorphic/run-B-MR-01.txt
+# 2026-09-28 作者本機。gate C 裡唯一合計 92.9% 的那份，逐條看它多殺的是誰。
+
+KAT 全部通過（5 組）
+run-B-MR-01.txt｜關係 17 條｜變異體 14 個
+
+  test_mr_prd12_charted_balances_equal_raw_balances          這批錯法碰不到
+  test_mr_prd02_prd03_trajectory_length_lifespan_extension   這批錯法碰不到
+  test_mr_prd01_pre_retirement_independent_of_post_retiremen 這批錯法碰不到
+  test_mr_prd02_target_fund_independent_of_accumulation_asse 這批錯法碰不到
+  test_mr_prd01_accumulation_scale_homogeneity               這批錯法碰不到
+  test_mr_prd01_savings_and_investment_superposition         這批錯法碰不到
+  test_mr_prd08_monthly_and_annual_expense_equivalence       這批錯法碰不到
+  test_mr_prd05_out_of_range_lump_sum_invariance             殺掉 2           M06、M07
+  test_mr_prd05_lump_sum_additive_splitting                  這批錯法碰不到
+  test_mr_prd09_surplus_income_ceiling_invariance            殺掉 1           M05
+  test_mr_prd03_prd12_negative_balance_no_clipping           殺掉 1           M02
+  test_mr_savings_monotonicity_on_projected_and_balances     這批錯法碰不到
+  test_mr_expense_monotonicity_on_target_and_balances        這批錯法碰不到
+  test_mr_prd06_pension_delay_monotonicity                   這批錯法碰不到
+  test_mr_pure_expense_target_fund_homogeneity               這批錯法碰不到
+  test_mr_prd04_input_validation_invalid_age_ordering        這批錯法碰不到
+  test_mr_prd04_input_validation_negative_amount             殺掉 1           M09
+
+計分 17 條｜聯集殺掉 5 / 14（35.7%）
+沒有任何一條抓得到：M01、M03、M04、M08、M10、M11、M12、M13、M14
+這批錯法碰不到的關係：13 / 17
+
+**這把尺只能證實，不能證偽。**
+殺不掉不等於沒用——那十四種錯法是人設計的（Day 20）。

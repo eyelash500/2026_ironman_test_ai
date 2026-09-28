@@ -1,0 +1,27 @@
+# python3 tools/mr_audit_batch.py generated/2026-09-26-ai-metamorphic/run-A-MR-01.txt
+# 2026-09-28 作者本機。gate C 因基準線紅而中止的那份，逐條跑時單獨排除紅的那條。
+
+KAT 全部通過（5 組）
+run-A-MR-01.txt｜關係 12 條｜變異體 14 個
+
+基準線紅、排除 1 條（未變異就不過，不列入計分）：
+  test_mr_income_expense_equivalence
+
+  test_mr_accumulation_linearity                             這批錯法碰不到
+  test_mr_accumulation_zero_return                           這批錯法碰不到
+  test_mr_target_fund_independence                           這批錯法碰不到
+  test_mr_gap_consistency                                    這批錯法碰不到
+  test_mr_ignored_lump_sums                                  殺掉 1           M06
+  test_mr_lump_sum_additivity                                這批錯法碰不到
+  test_mr_pension_start_age_delay                            這批錯法碰不到
+  test_mr_post_retirement_return_effect                      這批錯法碰不到
+  test_mr_net_expense_floor                                  殺掉 1           M05
+  test_mr_charted_balances_veracity                          殺掉 1           M02
+  test_mr_input_validation                                   這批錯法碰不到
+
+計分 11 條｜聯集殺掉 3 / 14（21.4%）
+沒有任何一條抓得到：M01、M03、M04、M07、M08、M09、M10、M11、M12、M13、M14
+這批錯法碰不到的關係：8 / 11
+
+**這把尺只能證實，不能證偽。**
+殺不掉不等於沒用——那十四種錯法是人設計的（Day 20）。
