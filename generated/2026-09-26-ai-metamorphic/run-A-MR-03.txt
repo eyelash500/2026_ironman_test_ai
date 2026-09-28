@@ -1,0 +1,294 @@
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "shadow"))
+
+from calc_fixed import LumpSum, Params, Result, calculate  # noqa: E402
+
+
+def test_mr1_accumulation_linearity():
+    # 把輸入怎麼變：將目前存款與每月投資額放大 2 倍、其餘不變。
+    # 輸出該有什麼關係：退休時預估準備金應恰好放大 2 倍，且目標退休金不變。
+    # 為什麼：累積期增值公式對本金與定期定額為線性關係，且累積期參數不影響消耗期的目標退休金計算。
+    p1 = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=90,
+        current_savings=100_000.0,
+        monthly_investment=10_000.0,
+        monthly_expense_today=50_000.0,
+        pre_retirement_return=0.08,
+    )
+    p2 = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=90,
+        current_savings=200_000.0,
+        monthly_investment=20_000.0,
+        monthly_expense_today=50_000.0,
+        pre_retirement_return=0.08,
+    )
+    
+    res1 = calculate(p1)
+    res2 = calculate(p2)
+    
+    assert res2.projected_savings == pytest.approx(res1.projected_savings * 2)
+    assert res2.target_fund == pytest.approx(res1.target_fund)
+
+
+def test_mr2_expense_linearity_zero_income():
+    # 把輸入怎麼變：在無任何退休收入的前提下，將每月花費與每年固定花費放大 3 倍。
+    # 輸出該有什麼關係：目標退休金應恰好放大 3 倍，預估準備金不變。
+    # 為什麼：無收入時，淨支出不會被 max(0, 支出-收入) 下限截斷，故支出放大 3 倍折現後的目標金也必放大 3 倍，而準備金僅與退休前有關。
+    p1 = Params(
+        current_age=40,
+        retirement_age=65,
+        life_expectancy=85,
+        current_savings=500_000.0,
+        monthly_investment=15_000.0,
+        monthly_expense_today=30_000.0,
+        annual_recurring_expense=60_000.0,
+        labor_insurance_pension=0.0,
+        labor_pension_monthly=0.0,
+        other_income=0.0,
+    )
+    p2 = Params(
+        current_age=40,
+        retirement_age=65,
+        life_expectancy=85,
+        current_savings=500_000.0,
+        monthly_investment=15_000.0,
+        monthly_expense_today=90_000.0,
+        annual_recurring_expense=180_000.0,
+        labor_insurance_pension=0.0,
+        labor_pension_monthly=0.0,
+        other_income=0.0,
+    )
+    
+    res1 = calculate(p1)
+    res2 = calculate(p2)
+    
+    assert res2.target_fund == pytest.approx(res1.target_fund * 3)
+    assert res2.projected_savings == pytest.approx(res1.projected_savings)
+
+
+def test_mr3_age_shift_invariance():
+    # 把輸入怎麼變：將所有年齡參數（包含現齡、退休年齡、預期壽命、勞保/勞退請領年齡、大筆支出發生年齡）皆延後 5 歲。
+    # 輸出該有什麼關係：所有的計算結果（預估準備金、目標退休金、餘額軌跡長度與金額）都必須與原本完全相同。
+    # 為什麼：累積期與消耗期的相對期數不變，且各項通膨指數皆基於相對年齡計算（t - A_c 或 t - A_p），平移後相對期數不變，折現與複利結果亦同。
+    shift = 5
+    p1 = Params(
+        current_age=35,
+        retirement_age=60,
+        life_expectancy=85,
+        current_savings=200_000.0,
+        monthly_investment=10_000.0,
+        monthly_expense_today=40_000.0,
+        labor_insurance_start_age=65,
+        labor_insurance_pension=20_000.0,
+        labor_pension_start_age=65,
+        labor_pension_monthly=10_000.0,
+        lump_sums=(LumpSum(age=70, amount=500_000.0),)
+    )
+    p2 = Params(
+        current_age=35 + shift,
+        retirement_age=60 + shift,
+        life_expectancy=85 + shift,
+        current_savings=200_000.0,
+        monthly_investment=10_000.0,
+        monthly_expense_today=40_000.0,
+        labor_insurance_start_age=65 + shift,
+        labor_insurance_pension=20_000.0,
+        labor_pension_start_age=65 + shift,
+        labor_pension_monthly=10_000.0,
+        lump_sums=(LumpSum(age=70 + shift, amount=500_000.0),)
+    )
+    
+    res1 = calculate(p1)
+    res2 = calculate(p2)
+    
+    assert res2.projected_savings == pytest.approx(res1.projected_savings)
+    assert res2.target_fund == pytest.approx(res1.target_fund)
+    assert res2.retirement_gap == pytest.approx(res1.retirement_gap)
+    
+    assert len(res2.balances_raw) == len(res1.balances_raw)
+    for b2, b1 in zip(res2.balances_raw, res1.balances_raw):
+        assert b2 == pytest.approx(b1)
+
+
+def test_mr4_pre_retirement_independence():
+    # 把輸入怎麼變：改變退休前的投資報酬率（pre_retirement_return）。
+    # 輸出該有什麼關係：預估準備金會改變，但目標退休金必須維持完全不變。
+    # 為什麼：目標退休金是將退休後的需求折現至退休時點，僅依賴消耗期的參數，不受累積期的報酬率影響。
+    p1 = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=90,
+        current_savings=100_000.0,
+        monthly_investment=10_000.0,
+        monthly_expense_today=50_000.0,
+        pre_retirement_return=0.08,
+    )
+    p2 = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=90,
+        current_savings=100_000.0,
+        monthly_investment=10_000.0,
+        monthly_expense_today=50_000.0,
+        pre_retirement_return=0.05,
+    )
+    
+    res1 = calculate(p1)
+    res2 = calculate(p2)
+    
+    assert res2.projected_savings != res1.projected_savings
+    assert res2.target_fund == pytest.approx(res1.target_fund)
+
+
+def test_mr5_post_retirement_independence():
+    # 把輸入怎麼變：改變退休後的投資報酬率（post_retirement_return）。
+    # 輸出該有什麼關係：目標退休金會改變，但預估準備金必須維持完全不變。
+    # 為什麼：預估準備金是由目前的資產滾存至退休時點，僅依賴累積期的參數，不受消耗期的報酬率影響。
+    p1 = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=90,
+        current_savings=100_000.0,
+        monthly_investment=10_000.0,
+        monthly_expense_today=50_000.0,
+        post_retirement_return=0.04,
+    )
+    p2 = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=90,
+        current_savings=100_000.0,
+        monthly_investment=10_000.0,
+        monthly_expense_today=50_000.0,
+        post_retirement_return=0.02,
+    )
+    
+    res1 = calculate(p1)
+    res2 = calculate(p2)
+    
+    assert res2.target_fund != res1.target_fund
+    assert res2.projected_savings == pytest.approx(res1.projected_savings)
+
+
+def test_mr6_expense_structure_equivalence():
+    # 把輸入怎麼變：將每年固定支出減少 120,000，同時將每月支出增加 10,000（總年支出額相同）。
+    # 輸出該有什麼關係：目標退休金與所有的餘額軌跡必須與原本完全一致。
+    # 為什麼：規格明定固定年支出與月支出合併計算，且共用同一組通膨指數（皆鎖定 A_c），故只要初始年度總額相同，計算結果必定相等。
+    p1 = Params(
+        current_age=40,
+        retirement_age=60,
+        life_expectancy=85,
+        current_savings=100_000.0,
+        monthly_investment=10_000.0,
+        monthly_expense_today=40_000.0,
+        annual_recurring_expense=150_000.0,
+    )
+    p2 = Params(
+        current_age=40,
+        retirement_age=60,
+        life_expectancy=85,
+        current_savings=100_000.0,
+        monthly_investment=10_000.0,
+        monthly_expense_today=50_000.0,
+        annual_recurring_expense=30_000.0,
+    )
+    
+    res1 = calculate(p1)
+    res2 = calculate(p2)
+    
+    assert res2.target_fund == pytest.approx(res1.target_fund)
+    assert len(res2.balances_raw) == len(res1.balances_raw)
+    for b2, b1 in zip(res2.balances_raw, res1.balances_raw):
+        assert b2 == pytest.approx(b1)
+
+
+def test_mr7_excess_income_target_zero():
+    # 把輸入怎麼變：將其他收入（other_income）設為極大值（確保每年收入大於支出），並與另一個將支出全部設為 0 的情境相比。
+    # 輸出該有什麼關係：兩者的目標退休金必須相等。
+    # 為什麼：淨支出有下限限制 max(0, 支出-收入)，當收入總是遠超支出時，每年淨支出皆為 0 且盈餘不滾存，等同於無支出情境。
+    p_no_expense = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=90,
+        current_savings=100_000.0,
+        monthly_investment=10_000.0,
+        monthly_expense_today=0.0,
+        annual_recurring_expense=0.0,
+        other_income=0.0,
+    )
+    p_huge_income = Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=90,
+        current_savings=100_000.0,
+        monthly_investment=10_000.0,
+        monthly_expense_today=50_000.0,
+        annual_recurring_expense=100_000.0,
+        other_income=1_000_000_000.0,
+    )
+    
+    res1 = calculate(p_no_expense)
+    res2 = calculate(p_huge_income)
+    
+    assert res2.target_fund == pytest.approx(res1.target_fund)
+
+
+def test_mr8_chart_balances_integrity():
+    # 把輸入怎麼變：不改變多次輸入，而是單次執行時挑選一個支出極大、會讓餘額提早變成負數的情境。
+    # 輸出該有什麼關係：balances_charted 必須逐項等於 balances_raw。
+    # 為什麼：規格 PRD-12 強制規定圖表餘額不得進行下限截斷隱藏負值，計算核心必須如實輸出，兩組序列必須完全一致。
+    p = Params(
+        current_age=50,
+        retirement_age=60,
+        life_expectancy=90,
+        current_savings=10_000.0,
+        monthly_investment=1_000.0,
+        monthly_expense_today=200_000.0,
+        annual_recurring_expense=0.0,
+    )
+    
+    res = calculate(p)
+    
+    assert len(res.balances_charted) == len(res.balances_raw)
+    for charted, raw in zip(res.balances_charted, res.balances_raw):
+        assert charted == raw
+
+
+def test_mr9_lump_sum_outside_span_ignored():
+    # 把輸入怎麼變：在原本無大筆支出的情況下，增加一筆發生在預期壽命之後（A_e > A_d）的大筆支出。
+    # 輸出該有什麼關係：包含目標退休金在內的所有結果，必須與未增加該筆支出時完全相同。
+    # 為什麼：規格 PRD-05 明定僅 A_r <= A_e <= A_d 計入，超出預期壽命的支出應被安全排除且忽略。
+    p1 = Params(
+        current_age=40,
+        retirement_age=60,
+        life_expectancy=80,
+        current_savings=1_000_000.0,
+        monthly_investment=20_000.0,
+        monthly_expense_today=50_000.0,
+        lump_sums=()
+    )
+    p2 = Params(
+        current_age=40,
+        retirement_age=60,
+        life_expectancy=80,
+        current_savings=1_000_000.0,
+        monthly_investment=20_000.0,
+        monthly_expense_today=50_000.0,
+        lump_sums=(LumpSum(age=85, amount=5_000_000.0),)
+    )
+    
+    res1 = calculate(p1)
+    res2 = calculate(p2)
+    
+    assert res2.target_fund == pytest.approx(res1.target_fund)
+    assert res2.projected_savings == pytest.approx(res1.projected_savings)
+    assert res2.retirement_gap == pytest.approx(res1.retirement_gap)

@@ -1,0 +1,22 @@
+# 關 B：未變異的 calc_fixed 上，該份測試必須全綠
+# 本輪特別要看的：關係本身寫錯的那種紅（事前預測過會出現，見 expectations）
+########## run-A-MR-01 ##########
+1 failed, 11 passed in 0.05s
+########## run-A-MR-02 ##########
+10 passed in 0.04s
+########## run-A-MR-03 ##########
+9 passed in 0.03s
+########## run-A-MR-04 ##########
+11 passed in 0.03s
+########## run-A-MR-05 ##########
+14 passed in 0.04s
+########## run-B-MR-01 ##########
+17 passed in 0.04s
+########## run-B-MR-02 ##########
+18 passed in 0.05s
+########## run-B-MR-03 ##########
+15 passed in 0.06s
+########## run-B-MR-04 ##########
+24 passed in 0.06s
+########## run-B-MR-05 ##########
+13 passed in 0.05s

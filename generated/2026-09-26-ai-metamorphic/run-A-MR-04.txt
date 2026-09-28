@@ -1,0 +1,217 @@
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "shadow"))
+
+from calc_fixed import LumpSum, Params, Result, calculate  # noqa: E402
+
+import math
+
+
+def make_params(**kwargs) -> Params:
+    """提供一組合法的預設參數供測試基準使用。"""
+    default = dict(
+        current_age=30,
+        retirement_age=65,
+        life_expectancy=85,
+        current_savings=100_000.0,
+        monthly_investment=10_000.0,
+        monthly_expense_today=40_000.0,
+        annual_recurring_expense=50_000.0,
+        labor_insurance_pension=10_000.0,
+        labor_insurance_start_age=65,
+        labor_pension_monthly=5_000.0,
+        labor_pension_start_age=65,
+        other_income=2_000.0,
+        pre_retirement_return=0.06,
+        post_retirement_return=0.04,
+        inflation_rate=0.02,
+        lump_sums=()
+    )
+    default.update(kwargs)
+    return Params(**default)
+
+
+def test_current_savings_linearity():
+    # 把輸入怎麼變：將 current_savings 變為原本的 K 倍（且設定 monthly_investment=0）。
+    # 輸出該有什麼關係：預估退休金 projected_savings 也必須變成 K 倍。
+    # 為什麼：因為本金與月存無關，純粹依 r/12 進行月複利，故對本金有絕對的線性正比關係（PRD-01）。
+    k = 2.5
+    base_p = make_params(current_savings=100_000, monthly_investment=0.0)
+    mod_p = make_params(current_savings=100_000 * k, monthly_investment=0.0)
+    
+    base_res = calculate(base_p)
+    mod_res = calculate(mod_p)
+    
+    assert math.isclose(mod_res.projected_savings, base_res.projected_savings * k, rel_tol=1e-9, abs_tol=1e-5)
+
+
+def test_monthly_investment_linearity():
+    # 把輸入怎麼變：將 monthly_investment 變為 K 倍（且設定 current_savings=0）。
+    # 輸出該有什麼關係：預估退休金 projected_savings 必須變成 K 倍。
+    # 為什麼：因為定期定額的終值與每期投入金額成正比（PRD-01）。
+    k = 3.0
+    base_p = make_params(current_savings=0.0, monthly_investment=10_000)
+    mod_p = make_params(current_savings=0.0, monthly_investment=10_000 * k)
+    
+    base_res = calculate(base_p)
+    mod_res = calculate(mod_p)
+    
+    assert math.isclose(mod_res.projected_savings, base_res.projected_savings * k, rel_tol=1e-9, abs_tol=1e-5)
+
+
+def test_target_fund_independence():
+    # 把輸入怎麼變：改變累積期的參數，包含 current_savings、monthly_investment 與 pre_retirement_return。
+    # 輸出該有什麼關係：目標退休金 target_fund 必須完全不變。
+    # 為什麼：因為目標金額是根據「退休後」的支出、收入及相關折現率計算而來，不應受累積期資金進度影響（PRD-02）。
+    base_p = make_params(current_savings=100_000, monthly_investment=10_000, pre_retirement_return=0.06)
+    mod_p = make_params(current_savings=500_000, monthly_investment=20_000, pre_retirement_return=0.08)
+    
+    base_res = calculate(base_p)
+    mod_res = calculate(mod_p)
+    
+    assert math.isclose(mod_res.target_fund, base_res.target_fund, rel_tol=1e-9, abs_tol=1e-5)
+
+
+def test_post_retirement_cashflow_scaling():
+    # 把輸入怎麼變：將所有退休後的常規支出與收入（含月支出、年支出、其他收入、勞保勞退、大筆支出）同時乘上 K 倍。
+    # 輸出該有什麼關係：在淨支出恆正的前提下，目標退休金 target_fund 必為 K 倍。
+    # 為什麼：因為每年的淨支出（支出 - 收入）都會剛好變成 K 倍，折現後的總和也必然具有線性可加性，變成 K 倍（PRD-02、PRD-10）。
+    k = 2.0
+    base_p = make_params(
+        monthly_expense_today=50_000, 
+        annual_recurring_expense=100_000,
+        labor_insurance_pension=10_000,
+        labor_pension_monthly=5_000,
+        other_income=2_000,
+        lump_sums=(LumpSum(70, 500_000),)
+    )
+    mod_p = make_params(
+        monthly_expense_today=50_000 * k, 
+        annual_recurring_expense=100_000 * k,
+        labor_insurance_pension=10_000 * k,
+        labor_pension_monthly=5_000 * k,
+        other_income=2_000 * k,
+        lump_sums=(LumpSum(70, 500_000 * k),)
+    )
+    
+    base_res = calculate(base_p)
+    mod_res = calculate(mod_p)
+    
+    assert math.isclose(mod_res.target_fund, base_res.target_fund * k, rel_tol=1e-9, abs_tol=1e-5)
+
+
+def test_lump_sums_out_of_bounds_ignored():
+    # 把輸入怎麼變：在原有的 lump_sums 中，新增發生在退休前 (A_r 前) 與壽命後 (A_d 後) 的大筆支出。
+    # 輸出該有什麼關係：計算結果 (target_fund 與 projected_savings) 必須與未新增前完全相同。
+    # 為什麼：因為 PRD-05 規定僅有區間 A_r ≤ A_e ≤ A_d 的大筆支出會計入，其餘兩端皆須排除忽略。
+    base_p = make_params(retirement_age=65, life_expectancy=85, lump_sums=(LumpSum(70, 100_000),))
+    mod_p = make_params(retirement_age=65, life_expectancy=85, lump_sums=(
+        LumpSum(64, 500_000), # 退休前
+        LumpSum(70, 100_000), # 區間內（應保留）
+        LumpSum(86, 500_000)  # 壽命後
+    ))
+    
+    base_res = calculate(base_p)
+    mod_res = calculate(mod_p)
+    
+    assert math.isclose(mod_res.target_fund, base_res.target_fund, rel_tol=1e-9, abs_tol=1e-5)
+    assert math.isclose(mod_res.projected_savings, base_res.projected_savings, rel_tol=1e-9, abs_tol=1e-5)
+
+
+def test_lump_sums_aggregation():
+    # 把輸入怎麼變：將同一年的多筆大筆支出，合併替換為一筆總和相等等額的大筆支出。
+    # 輸出該有什麼關係：目標退休金 target_fund 必須維持相同。
+    # 為什麼：同一年的現金流量，加總後一次折現，與分項各自折現後再加總，數學上必然相等（PRD-05）。
+    base_p = make_params(lump_sums=(LumpSum(70, 100_000), LumpSum(70, 250_000)))
+    mod_p = make_params(lump_sums=(LumpSum(70, 350_000),))
+    
+    base_res = calculate(base_p)
+    mod_res = calculate(mod_p)
+    
+    assert math.isclose(mod_res.target_fund, base_res.target_fund, rel_tol=1e-9, abs_tol=1e-5)
+
+
+def test_balances_trajectory_length():
+    # 把輸入怎麼變：將預期壽命 life_expectancy (A_d) 延長 5 年。
+    # 輸出該有什麼關係：餘額軌跡 balances_raw 的陣列長度必須剛好多 5。
+    # 為什麼：因為 PRD-03 規定餘額軌跡對齊退休期間，長度必須固定為 A_d - A_r + 1。
+    base_p = make_params(retirement_age=60, life_expectancy=80)
+    mod_p = make_params(retirement_age=60, life_expectancy=85)
+    
+    base_res = calculate(base_p)
+    mod_res = calculate(mod_p)
+    
+    assert len(mod_res.balances_raw) == len(base_res.balances_raw) + 5
+
+
+def test_balances_charted_equals_raw():
+    # 把輸入怎麼變：設定極大的月支出，故意使帳戶快速見底產生負餘額，並對比正常支出。
+    # 輸出該有什麼關係：兩次結果的 balances_charted 都必須逐項完全等於當次的 balances_raw。
+    # 為什麼：因為 PRD-12 強制規定圖表用餘額不得隱藏或截斷負值，必須照實輸出（禁止 max(0, ...)）。
+    base_p = make_params(monthly_expense_today=10_000)
+    mod_p = make_params(monthly_expense_today=999_999_999) 
+    
+    base_res = calculate(base_p)
+    mod_res = calculate(mod_p)
+    
+    assert base_res.balances_charted == base_res.balances_raw
+    assert mod_res.balances_charted == mod_res.balances_raw
+    
+    # 確保真的有測到負值情境
+    assert len(mod_res.balances_raw) > 0
+    assert any(b < 0 for b in mod_res.balances_raw)
+
+
+def test_retirement_gap_consistency():
+    # 把輸入怎麼變：單純增加目前存款 current_savings。
+    # 輸出該有什麼關係：retirement_gap 的減少量，必須剛好等於 projected_savings 的增加量。
+    # 為什麼：因為缺口定義為「目標資金 - 預估資金」，在目標資金不變的狀態下，已備資金增加多少，缺口就該縮小多少。
+    base_p = make_params(current_savings=100_000)
+    mod_p = make_params(current_savings=300_000)
+    
+    base_res = calculate(base_p)
+    mod_res = calculate(mod_p)
+    
+    projected_diff = mod_res.projected_savings - base_res.projected_savings
+    gap_diff = mod_res.retirement_gap - base_res.retirement_gap
+    
+    assert math.isclose(gap_diff, -projected_diff, rel_tol=1e-9, abs_tol=1e-5)
+
+
+def test_zero_return_linear_accumulation():
+    # 把輸入怎麼變：當退休前報酬率 pre_retirement_return=0 時，將目前年齡 current_age 提早 1 年。
+    # 輸出該有什麼關係：預估退休金 projected_savings 必須剛好增加 12 個月的月投資額。
+    # 為什麼：因為 r=0 時退化為不具複利效應的線性累加（PRD-01），累積期多出一年剛好就是多存 12 個月的本金。
+    base_p = make_params(current_age=30, retirement_age=60, pre_retirement_return=0.0, monthly_investment=10_000)
+    mod_p = make_params(current_age=29, retirement_age=60, pre_retirement_return=0.0, monthly_investment=10_000)
+    
+    base_res = calculate(base_p)
+    mod_res = calculate(mod_p)
+    
+    expected_increase = 10_000 * 12
+    actual_increase = mod_res.projected_savings - base_res.projected_savings
+    
+    assert math.isclose(actual_increase, expected_increase, rel_tol=1e-9, abs_tol=1e-5)
+
+
+def test_income_surplus_does_not_decrease_target_fund():
+    # 把輸入怎麼變：當其他收入 already 極大於所有支出時，進一步大幅提高其他收入。
+    # 輸出該有什麼關係：目標退休金 target_fund 必須保持不變。
+    # 為什麼：因為 PRD-09 規定淨支出下限為 0（max(0, 支出 - 收入)），盈餘不滾存，超出支出的收入會被直接捨棄。
+    base_p = make_params(
+        monthly_expense_today=10_000,
+        other_income=10_000_000  # 足以覆蓋任何常規支出
+    )
+    mod_p = make_params(
+        monthly_expense_today=10_000,
+        other_income=20_000_000  # 進一步提高
+    )
+    
+    base_res = calculate(base_p)
+    mod_res = calculate(mod_p)
+    
+    assert math.isclose(mod_res.target_fund, base_res.target_fund, rel_tol=1e-9, abs_tol=1e-5)

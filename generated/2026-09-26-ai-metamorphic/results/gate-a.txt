@@ -1,0 +1,52 @@
+# 關 A：tools/assert_inspector.py（忠實性 >= 0.8、無 EMPTY、無 VACUUM_ONLY）
+# 判準沿用 2026-09-23 修正版：SKIPPED 不計入失敗
+########## run-A-MR-01 ##########
+
+tests/test_ai_mr.py
+  測試函式 12 條｜忠實性 100%｜閘門 3 PASS
+  strict 11｜contract 1｜relational 3
+########## run-A-MR-02 ##########
+
+tests/test_ai_mr.py
+  測試函式 10 條｜忠實性 100%｜閘門 3 PASS
+  strict 12｜relational 4｜structural 2
+########## run-A-MR-03 ##########
+
+tests/test_ai_mr.py
+  測試函式 9 條｜忠實性 89%｜閘門 3 PASS
+  strict 17｜weak 2｜structural 3
+########## run-A-MR-04 ##########
+
+tests/test_ai_mr.py
+  測試函式 11 條｜忠實性 92%｜閘門 3 PASS
+  strict 12｜vacuum 1｜structural 2
+########## run-A-MR-05 ##########
+
+tests/test_ai_mr.py
+  測試函式 14 條｜忠實性 100%｜閘門 3 PASS
+  strict 21｜relational 1｜structural 2
+########## run-B-MR-01 ##########
+
+tests/test_ai_mr.py
+  測試函式 17 條｜忠實性 100%｜閘門 3 PASS
+  strict 13｜contract 2｜relational 5｜structural 3
+########## run-B-MR-02 ##########
+
+tests/test_ai_mr.py
+  測試函式 18 條｜忠實性 100%｜閘門 3 PASS
+  strict 17｜relational 6｜structural 2
+########## run-B-MR-03 ##########
+
+tests/test_ai_mr.py
+  測試函式 15 條｜忠實性 100%｜閘門 3 PASS
+  strict 29｜relational 3｜structural 3
+########## run-B-MR-04 ##########
+
+tests/test_ai_mr.py
+  測試函式 24 條｜忠實性 100%｜閘門 3 PASS
+  strict 26｜relational 5｜structural 3
+########## run-B-MR-05 ##########
+
+tests/test_ai_mr.py
+  測試函式 13 條｜忠實性 100%｜閘門 3 PASS
+  strict 20｜relational 2｜structural 2

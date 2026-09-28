@@ -1,0 +1,171 @@
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "shadow"))
+
+from calc_fixed import LumpSum, Params, Result, calculate  # noqa: E402
+
+import dataclasses
+
+
+def get_base_params() -> Params:
+    """提供一組標準合理的基礎參數，確保計算路徑皆能正常執行。"""
+    return Params(
+        current_age=30,
+        retirement_age=65,
+        life_expectancy=90,
+        current_savings=1_000_000.0,
+        monthly_investment=15_000.0,
+        monthly_expense_today=50_000.0,
+        annual_recurring_expense=100_000.0,
+        labor_insurance_pension=0.0,
+        labor_insurance_start_age=65,
+        labor_pension_monthly=0.0,
+        labor_pension_start_age=65,
+        other_income=0.0,
+        pre_retirement_return=0.06,
+        post_retirement_return=0.04,
+        inflation_rate=0.02,
+        lump_sums=()
+    )
+
+
+# 把本金 (current_savings) 與月存 (monthly_investment) 同時乘以兩倍，累積期滿的 projected_savings 也必須精準變為兩倍，因為複利計算對本金與定期定額投入是線性轉換 (PRD-01)。
+def test_mr_accumulation_linearity():
+    p1 = get_base_params()
+    p2 = dataclasses.replace(
+        p1,
+        current_savings=p1.current_savings * 2.0,
+        monthly_investment=p1.monthly_investment * 2.0
+    )
+    res1 = calculate(p1)
+    res2 = calculate(p2)
+    assert res2.projected_savings == pytest.approx(res1.projected_savings * 2.0)
+
+
+# 把累積期的投資報酬率設為 0，並將沒有初始本金情況下的累積年數（退休年齡減現齡）加倍，projected_savings 應該精準等於兩倍，因為此時複利退化為單純的線性累加 (PRD-01)。
+def test_mr_accumulation_zero_return():
+    # A_r (65) - A_c (45) = 20 年
+    p1 = dataclasses.replace(
+        get_base_params(),
+        current_age=45,
+        current_savings=0.0,
+        pre_retirement_return=0.0
+    )
+    # A_r (65) - A_c (25) = 40 年 (時間兩倍)
+    p2 = dataclasses.replace(p1, current_age=25)
+    res1 = calculate(p1)
+    res2 = calculate(p2)
+    assert res2.projected_savings == pytest.approx(res1.projected_savings * 2.0)
+
+
+# 把累積期的本金 (current_savings) 增加，不應影響退休所需總額 target_fund，因為目標資金僅依賴退休後的支出與收入折現 (PRD-02)。
+def test_mr_target_fund_independence():
+    p1 = get_base_params()
+    p2 = dataclasses.replace(p1, current_savings=p1.current_savings + 2_000_000.0)
+    res1 = calculate(p1)
+    res2 = calculate(p2)
+    assert res2.target_fund == res1.target_fund
+
+
+# 把累積期的本金 (current_savings) 增加，projected_savings 會相應增加，而 target_fund 不變，因此 retirement_gap (資金缺口) 的減少量必須精準等於 projected_savings 的增加量。
+def test_mr_gap_consistency():
+    p1 = get_base_params()
+    p2 = dataclasses.replace(p1, current_savings=p1.current_savings + 500_000.0)
+    res1 = calculate(p1)
+    res2 = calculate(p2)
+    
+    diff_savings = res2.projected_savings - res1.projected_savings
+    assert res2.target_fund == res1.target_fund
+    assert res2.retirement_gap == pytest.approx(res1.retirement_gap - diff_savings)
+
+
+# 把大筆支出 (LumpSum) 的年齡移到預期壽命 (A_d) 之後，該筆支出應被排除，target_fund 必須與完全沒有該筆支出時的結果完全相同 (PRD-05)。
+def test_mr_ignored_lump_sums():
+    p1 = dataclasses.replace(get_base_params(), lump_sums=())
+    # A_d = 90，將 LumpSum 設在 95 歲
+    p2 = dataclasses.replace(p1, lump_sums=(LumpSum(age=95, amount=1_000_000.0),))
+    res1 = calculate(p1)
+    res2 = calculate(p2)
+    assert res2.target_fund == res1.target_fund
+
+
+# 把同一年齡的兩筆相同金額的大筆支出 (LumpSum)，合併為一筆同一年齡且金額為兩倍的大筆支出，對 target_fund 的影響必須完全一致，因為折現與通膨計算皆為線性操作 (PRD-05)。
+def test_mr_lump_sum_additivity():
+    p_base = get_base_params()
+    p1 = dataclasses.replace(p_base, lump_sums=(
+        LumpSum(age=75, amount=300_000.0),
+        LumpSum(age=75, amount=300_000.0)
+    ))
+    p2 = dataclasses.replace(p_base, lump_sums=(
+        LumpSum(age=75, amount=600_000.0),
+    ))
+    res1 = calculate(p1)
+    res2 = calculate(p2)
+    assert res2.target_fund == pytest.approx(res1.target_fund)
+
+
+# 把固定年支出 (annual_recurring_expense) 與其他收入 (other_income) 同時調增相同的金額，由於兩者通膨基準皆為現齡 A_c，兩者的增幅會逐年完全抵銷，target_fund 必須維持完全相同 (PRD-08, PRD-10)。
+def test_mr_income_expense_equivalence():
+    p1 = get_base_params()
+    p2 = dataclasses.replace(
+        p1,
+        annual_recurring_expense=p1.annual_recurring_expense + 200_000.0,
+        other_income=p1.other_income + 200_000.0
+    )
+    res1 = calculate(p1)
+    res2 = calculate(p2)
+    assert res2.target_fund == pytest.approx(res1.target_fund)
+
+
+# 把勞保年金的請領年齡 (labor_insurance_start_age) 往後延遲，由於退休後能領取年金的總年數減少，能抵銷的支出變少，導致 target_fund 必然增加 (PRD-06)。
+def test_mr_pension_start_age_delay():
+    p1 = dataclasses.replace(
+        get_base_params(),
+        labor_insurance_pension=25_000.0,
+        labor_insurance_start_age=65
+    )
+    p2 = dataclasses.replace(p1, labor_insurance_start_age=70)
+    res1 = calculate(p1)
+    res2 = calculate(p2)
+    assert res2.target_fund > res1.target_fund
+
+
+# 把退休後的預期投資報酬率 (post_retirement_return) 提高，由於折現率變大，要支撐相同退休支出的目標資金 target_fund 必然減少 (PRD-02)。
+def test_mr_post_retirement_return_effect():
+    p1 = dataclasses.replace(get_base_params(), post_retirement_return=0.03)
+    p2 = dataclasses.replace(p1, post_retirement_return=0.06)
+    res1 = calculate(p1)
+    res2 = calculate(p2)
+    assert res2.target_fund < res1.target_fund
+
+
+# 把其他收入調高到遠超過每年支出確保每年淨支出皆被下限 0 截斷（盈餘不滾存），此時 target_fund 必為定值。再次調高收入，target_fund 依然保持相同 (PRD-09)。
+def test_mr_net_expense_floor():
+    p1 = dataclasses.replace(get_base_params(), other_income=10_000_000.0)
+    p2 = dataclasses.replace(p1, other_income=20_000_000.0)
+    res1 = calculate(p1)
+    res2 = calculate(p2)
+    assert res2.target_fund == res1.target_fund
+
+
+# 把月支出設定極大以保證退休後餘額跌破零，進一步調高月支出會使最後一年的真實餘額 (balances_raw[-1]) 變得更低；同時兩次結果的圖表軌跡 (balances_charted) 都必須逐項等於真實軌跡，不得截斷 (PRD-03, PRD-12)。
+def test_mr_charted_balances_veracity():
+    p1 = dataclasses.replace(get_base_params(), monthly_expense_today=500_000.0)
+    p2 = dataclasses.replace(p1, monthly_expense_today=1_000_000.0)
+    res1 = calculate(p1)
+    res2 = calculate(p2)
+    
+    assert res2.balances_raw[-1] < res1.balances_raw[-1]
+    assert res1.balances_charted == res1.balances_raw
+    assert res2.balances_charted == res2.balances_raw
+
+
+# 把現齡 (current_age) 設為等於退休年齡 (retirement_age)，違反 A_c < A_r 的輸入校驗規則，必須拋出例外 (PRD-04)。
+def test_mr_input_validation():
+    p = dataclasses.replace(get_base_params(), current_age=65, retirement_age=65)
+    with pytest.raises(Exception):
+        calculate(p)

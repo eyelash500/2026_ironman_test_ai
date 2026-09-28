@@ -1,0 +1,226 @@
+import sys
+from dataclasses import replace
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "shadow"))
+
+from calc_fixed import LumpSum, Params, Result, calculate  # noqa: E402
+
+
+def _get_base_params() -> Params:
+    return Params(
+        current_age=30,
+        retirement_age=65,
+        life_expectancy=85,
+        current_savings=1_000_000.0,
+        monthly_investment=20_000.0,
+        monthly_expense_today=40_000.0,
+        annual_recurring_expense=100_000.0,
+        labor_insurance_pension=20_000.0,
+        labor_insurance_start_age=65,
+        labor_pension_monthly=15_000.0,
+        labor_pension_start_age=65,
+        other_income=5_000.0,
+        pre_retirement_return=0.07,
+        post_retirement_return=0.04,
+        inflation_rate=0.02,
+        lump_sums=(
+            LumpSum(age=70, amount=500_000.0),
+            LumpSum(age=75, amount=300_000.0),
+        ),
+    )
+
+
+# 把任意合法參數輸入計算，輸出 balances_charted 必須逐項等於 balances_raw，因為 PRD-12 規範圖表餘額不得截斷且計算核心須保持兩者完全一致。
+def test_mr_charted_balances_equals_raw():
+    p = _get_base_params()
+    res = calculate(p)
+    assert res.balances_charted == res.balances_raw
+
+
+# 把輸入加入小於退休年齡及大於預期壽命的大筆支出，輸出所有結果欄位必須與未加入前完全相等，因為 PRD-05 規定非退休區間的大筆支出皆應排除忽略。
+def test_mr_ignore_out_of_range_lump_sums():
+    p_base = _get_base_params()
+    res_base = calculate(p_base)
+
+    out_of_range = (
+        LumpSum(age=p_base.current_age, amount=100_000.0),
+        LumpSum(age=p_base.retirement_age - 1, amount=200_000.0),
+        LumpSum(age=p_base.life_expectancy + 1, amount=500_000.0),
+        LumpSum(age=p_base.life_expectancy + 10, amount=800_000.0),
+    )
+    p_mod = replace(p_base, lump_sums=p_base.lump_sums + out_of_range)
+    res_mod = calculate(p_mod)
+
+    assert res_mod.projected_savings == pytest.approx(res_base.projected_savings)
+    assert res_mod.target_fund == pytest.approx(res_base.target_fund)
+    assert res_mod.retirement_gap == pytest.approx(res_base.retirement_gap)
+    assert res_mod.balances_raw == pytest.approx(res_base.balances_raw)
+    assert res_mod.balances_charted == pytest.approx(res_base.balances_charted)
+
+
+# 把今日月支出轉換為等額的固定年支出（月支出乘 12 後歸零），輸出 target_fund 與提領餘額軌跡必須相等，因為 PRD-08 規定固定年支出與月支出共用同一年齡基準的通膨指數。
+def test_mr_monthly_and_annual_expense_equivalence():
+    p_base = _get_base_params()
+    total_annual = p_base.annual_recurring_expense + p_base.monthly_expense_today * 12
+    p_annual_only = replace(
+        p_base,
+        monthly_expense_today=0.0,
+        annual_recurring_expense=total_annual,
+    )
+    res_base = calculate(p_base)
+    res_annual = calculate(p_annual_only)
+
+    assert res_annual.target_fund == pytest.approx(res_base.target_fund)
+    assert res_annual.balances_raw == pytest.approx(res_base.balances_raw)
+
+
+# 在請領年齡相同的前提下，把勞退月領金額併入勞保年金月額，輸出結果必須完全相同，因為 PRD-06、PRD-07 與 PRD-10 規範兩者在相同起領年齡下的通膨指數化與計算邏輯完全對稱。
+def test_mr_labor_pension_and_insurance_equivalence():
+    p_base = _get_base_params()
+    merged_pension = p_base.labor_insurance_pension + p_base.labor_pension_monthly
+    p_merged = replace(
+        p_base,
+        labor_insurance_pension=merged_pension,
+        labor_pension_monthly=0.0,
+    )
+    res_base = calculate(p_base)
+    res_merged = calculate(p_merged)
+
+    assert res_merged.target_fund == pytest.approx(res_base.target_fund)
+    assert res_merged.retirement_gap == pytest.approx(res_base.retirement_gap)
+    assert res_merged.balances_raw == pytest.approx(res_base.balances_raw)
+
+
+# 把現有資產與月投資額等比例放大 k 倍，輸出 projected_savings 必須剛好放大為 k 倍，因為 PRD-01 規定累積期採月複利終值計算，本金與月存對資產規模具備正一次齊次性。
+def test_mr_accumulation_scaling():
+    p_base = _get_base_params()
+    k = 2.5
+    p_scaled = replace(
+        p_base,
+        current_savings=p_base.current_savings * k,
+        monthly_investment=p_base.monthly_investment * k,
+    )
+    res_base = calculate(p_base)
+    res_scaled = calculate(p_scaled)
+
+    assert res_scaled.projected_savings == pytest.approx(k * res_base.projected_savings)
+
+
+# 把累積期資產拆成僅有本金與僅有月存分別計算，兩者輸出的 projected_savings 相加必須等於合在一起計算的結果，因為 PRD-01 規定名目月利率與複利頻率一致，具有線性可加性。
+def test_mr_accumulation_additivity():
+    p_base = _get_base_params()
+    p_savings_only = replace(p_base, monthly_investment=0.0)
+    p_investment_only = replace(p_base, current_savings=0.0)
+
+    res_base = calculate(p_base)
+    res_savings = calculate(p_savings_only)
+    res_investment = calculate(p_investment_only)
+
+    assert res_base.projected_savings == pytest.approx(
+        res_savings.projected_savings + res_investment.projected_savings
+    )
+
+
+# 把現有資產與每月投資額調高，輸出 target_fund 必須維持完全不變，因為 PRD-02 規範退休目標金額僅由退休後各期支出與收入折現決定，與退休前資產積累獨立無關。
+def test_mr_target_fund_independent_of_savings_and_investment():
+    p_base = _get_base_params()
+    p_more_savings = replace(
+        p_base,
+        current_savings=p_base.current_savings * 3.0 + 500_000.0,
+        monthly_investment=p_base.monthly_investment * 2.0 + 10_000.0,
+    )
+    res_base = calculate(p_base)
+    res_more = calculate(p_more_savings)
+
+    assert res_more.target_fund == pytest.approx(res_base.target_fund)
+
+
+# 把退休期間同一年份的大筆支出拆分成兩筆金額相加的支出項目，輸出 target_fund 與餘額軌跡必須相等，因為 PRD-05 規範大筆支出依發生年齡名目化折算，同一年之金額具有可加性。
+def test_mr_lump_sum_split_additivity():
+    p_base = replace(
+        _get_base_params(),
+        lump_sums=(LumpSum(age=72, amount=600_000.0),),
+    )
+    p_split = replace(
+        p_base,
+        lump_sums=(
+            LumpSum(age=72, amount=250_000.0),
+            LumpSum(age=72, amount=350_000.0),
+        ),
+    )
+    res_base = calculate(p_base)
+    res_split = calculate(p_split)
+
+    assert res_split.target_fund == pytest.approx(res_base.target_fund)
+    assert res_split.balances_raw == pytest.approx(res_base.balances_raw)
+
+
+# 把預期壽命增加 1 歲，輸出 balances_raw 與 balances_charted 的陣列長度必須剛好增加 1，因為 PRD-02 與 PRD-03 規定提領餘額軌跡的期數必須嚴格對齊退休期間（A_d - A_r + 1 年）。
+def test_mr_life_expectancy_trajectory_length():
+    p_base = _get_base_params()
+    p_extended = replace(p_base, life_expectancy=p_base.life_expectancy + 1)
+
+    res_base = calculate(p_base)
+    res_extended = calculate(p_extended)
+
+    assert len(res_extended.balances_raw) == len(res_base.balances_raw) + 1
+    assert len(res_extended.balances_charted) == len(res_base.balances_charted) + 1
+
+
+# 把退休後每月份生活支出調高，輸出 target_fund 必須大於或等於原數值，因為 PRD-02 與 PRD-09 規定淨支出與折現為非負累加，支出提升必然導致所需目標金額單調不減。
+def test_mr_target_fund_monotonic_with_expense():
+    p_base = _get_base_params()
+    p_higher_expense = replace(
+        p_base,
+        monthly_expense_today=p_base.monthly_expense_today + 15_000.0,
+    )
+    res_base = calculate(p_base)
+    res_higher = calculate(p_higher_expense)
+
+    assert res_higher.target_fund >= res_base.target_fund
+
+
+# 把退休後其他收入調高，輸出 target_fund 必須小於或等於原數值，因為 PRD-09 規定淨支出為 max(0, 支出 - 收入)，收入提升使得每期淨支出單調不增，目標金額亦單調不增。
+def test_mr_target_fund_monotonic_with_income():
+    p_base = _get_base_params()
+    p_higher_income = replace(
+        p_base,
+        other_income=p_base.other_income + 20_000.0,
+    )
+    res_base = calculate(p_base)
+    res_higher = calculate(p_higher_income)
+
+    assert res_higher.target_fund <= res_base.target_fund
+
+
+# 把多筆合法大筆支出的輸入順序顛倒，輸出所有結果欄位必須完全相同，因為 PRD-05 依各筆支出的 age 分別計入對應年份，與輸入串列中的順序無關。
+def test_mr_lump_sum_order_independence():
+    ls1 = LumpSum(age=66, amount=200_000.0)
+    ls2 = LumpSum(age=72, amount=400_000.0)
+    ls3 = LumpSum(age=80, amount=600_000.0)
+
+    p1 = replace(_get_base_params(), lump_sums=(ls1, ls2, ls3))
+    p2 = replace(_get_base_params(), lump_sums=(ls3, ls1, ls2))
+
+    res1 = calculate(p1)
+    res2 = calculate(p2)
+
+    assert res1.target_fund == pytest.approx(res2.target_fund)
+    assert res1.retirement_gap == pytest.approx(res2.retirement_gap)
+    assert res1.balances_raw == pytest.approx(res2.balances_raw)
+
+
+# 當退休後收入已極度充裕使 target_fund 降至 0，再繼續增加其他收入，輸出 target_fund 必須維持等於前一次的 target_fund，因為 PRD-09 規定淨支出下限為 0 且盈餘不滾存。
+def test_mr_target_fund_zero_floor_saturation():
+    p_base = _get_base_params()
+    p_rich = replace(p_base, other_income=10_000_000.0)
+    p_richer = replace(p_base, other_income=20_000_000.0)
+
+    res_rich = calculate(p_rich)
+    res_richer = calculate(p_richer)
+
+    assert res_richer.target_fund == pytest.approx(res_rich.target_fund)

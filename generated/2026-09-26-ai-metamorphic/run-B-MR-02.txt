@@ -1,0 +1,289 @@
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "shadow"))
+
+from calc_fixed import LumpSum, Params, Result, calculate  # noqa: E402
+from dataclasses import replace
+
+
+@pytest.fixture
+def base_params() -> Params:
+    """提供一組在所有規格有效區間內的基礎參數組合。"""
+    return Params(
+        current_age=30,
+        retirement_age=60,
+        life_expectancy=85,
+        current_savings=1_000_000.0,
+        monthly_investment=20_000.0,
+        monthly_expense_today=40_000.0,
+        annual_recurring_expense=60_000.0,
+        labor_insurance_pension=15_000.0,
+        labor_insurance_start_age=65,
+        labor_pension_monthly=10_000.0,
+        labor_pension_start_age=65,
+        other_income=5_000.0,
+        pre_retirement_return=0.08,
+        post_retirement_return=0.04,
+        inflation_rate=0.02,
+        lump_sums=(),
+    )
+
+
+# 把輸入設為任意合法參數組合；輸出 balances_charted 必須逐項完全等於 balances_raw；依 PRD-12 圖表餘額不得進行任何下限截斷，計算核心須忠實反映真實餘額。
+def test_mr_balances_charted_equals_raw(base_params: Params) -> None:
+    res = calculate(base_params)
+    assert res.balances_charted == res.balances_raw
+
+
+# 把每月支出減少 X 並將固定年支出增加 12X；輸出 target_fund 與餘額軌跡必須完全相同；依 PRD-08 兩者合併計算且共用同一組鎖定現齡的通膨基準。
+def test_mr_monthly_and_annual_expense_fungibility(base_params: Params) -> None:
+    shift_monthly = 5_000.0
+    p_shifted = replace(
+        base_params,
+        monthly_expense_today=base_params.monthly_expense_today - shift_monthly,
+        annual_recurring_expense=base_params.annual_recurring_expense + shift_monthly * 12,
+    )
+    res_base = calculate(base_params)
+    res_shifted = calculate(p_shifted)
+
+    assert res_shifted.target_fund == pytest.approx(res_base.target_fund, rel=1e-7)
+    assert res_shifted.balances_raw == pytest.approx(res_base.balances_raw, rel=1e-7)
+
+
+# 把大筆支出分別設定在退休前（Ae < Ar）與壽命後（Ae > Ad）；輸出各項指標必須與未加入前完全一致；依 PRD-05 僅採計提領期間內支出，區間外項目皆被排除。
+def test_mr_out_of_range_lump_sum_invariance(base_params: Params) -> None:
+    p_with_irrelevant_lumps = replace(
+        base_params,
+        lump_sums=(
+            LumpSum(age=base_params.current_age, amount=300_000.0),
+            LumpSum(age=base_params.retirement_age - 1, amount=400_000.0),
+            LumpSum(age=base_params.life_expectancy + 1, amount=500_000.0),
+        ),
+    )
+    res_base = calculate(base_params)
+    res_filtered = calculate(p_with_irrelevant_lumps)
+
+    assert res_filtered.target_fund == pytest.approx(res_base.target_fund, rel=1e-7)
+    assert res_filtered.projected_savings == pytest.approx(res_base.projected_savings, rel=1e-7)
+    assert res_filtered.retirement_gap == pytest.approx(res_base.retirement_gap, rel=1e-7)
+    assert res_filtered.balances_raw == pytest.approx(res_base.balances_raw, rel=1e-7)
+
+
+# 把退休期間內多筆大筆支出的輸入順序打亂對調；輸出 target_fund 與餘額軌跡必須完全相同；因大筆支出按發生年齡各自折算計入，輸入順序不影響計算結果。
+def test_mr_lump_sum_order_invariance(base_params: Params) -> None:
+    lump_a = LumpSum(age=65, amount=200_000.0)
+    lump_b = LumpSum(age=72, amount=500_000.0)
+    p_order1 = replace(base_params, lump_sums=(lump_a, lump_b))
+    p_order2 = replace(base_params, lump_sums=(lump_b, lump_a))
+
+    res1 = calculate(p_order1)
+    res2 = calculate(p_order2)
+
+    assert res2.target_fund == pytest.approx(res1.target_fund, rel=1e-7)
+    assert res2.balances_raw == pytest.approx(res1.balances_raw, rel=1e-7)
+
+
+# 把同一年齡發生的兩筆大筆支出合併為該年的一筆總額；輸出 target_fund 與提領軌跡必須完全相同；依 PRD-05 同一年齡之支出共用相同通膨與折現因子，具加法可合併性。
+def test_mr_lump_sum_same_age_additivity(base_params: Params) -> None:
+    p_split = replace(
+        base_params,
+        lump_sums=(
+            LumpSum(age=68, amount=250_000.0),
+            LumpSum(age=68, amount=350_000.0),
+        ),
+    )
+    p_merged = replace(
+        base_params,
+        lump_sums=(LumpSum(age=68, amount=600_000.0),),
+    )
+    res_split = calculate(p_split)
+    res_merged = calculate(p_merged)
+
+    assert res_merged.target_fund == pytest.approx(res_split.target_fund, rel=1e-7)
+    assert res_merged.balances_raw == pytest.approx(res_split.balances_raw, rel=1e-7)
+
+
+# 把現有資產與每月投資同時等比例放大 k 倍；輸出 projected_savings 必須剛好放大 k 倍；依 PRD-01 累積期名目利率複利公式與期末年金對資金規模皆具線性齐次性。
+def test_mr_projected_savings_scalar_multiplication(base_params: Params) -> None:
+    scale_factor = 2.5
+    p_scaled = replace(
+        base_params,
+        current_savings=base_params.current_savings * scale_factor,
+        monthly_investment=base_params.monthly_investment * scale_factor,
+    )
+    res_base = calculate(base_params)
+    res_scaled = calculate(p_scaled)
+
+    assert res_scaled.projected_savings == pytest.approx(
+        res_base.projected_savings * scale_factor, rel=1e-7
+    )
+
+
+# 把現有資產與每月投資分別單獨投入計算累積值；兩次輸出的 projected_savings 相加必須等於兩者同時投入時的結果；依 PRD-01 複利終值公式滿足線性疊加原理。
+def test_mr_projected_savings_superposition(base_params: Params) -> None:
+    p_savings_only = replace(base_params, monthly_investment=0.0)
+    p_investment_only = replace(base_params, current_savings=0.0)
+
+    res_both = calculate(base_params)
+    res_savings = calculate(p_savings_only)
+    res_investment = calculate(p_investment_only)
+
+    assert res_both.projected_savings == pytest.approx(
+        res_savings.projected_savings + res_investment.projected_savings, rel=1e-7
+    )
+
+
+# 把現有資產、每月投資與退休前報酬率修改為任意數值；輸出 target_fund 必須完全不變；因退休目標金額僅由退休後的現金流與折現率決定，與退休前累積參數完全無關。
+def test_mr_target_fund_independent_of_pre_retirement_params(base_params: Params) -> None:
+    p_modified = replace(
+        base_params,
+        current_savings=base_params.current_savings * 5.0,
+        monthly_investment=base_params.monthly_investment * 3.0,
+        pre_retirement_return=base_params.pre_retirement_return + 0.05,
+    )
+    res_base = calculate(base_params)
+    res_mod = calculate(p_modified)
+
+    assert res_mod.target_fund == pytest.approx(res_base.target_fund, rel=1e-7)
+
+
+# 把壽命、退休後報酬率、退休後支出與年金大幅修改；輸出 projected_savings 必須完全不變；依 PRD-01 累積期資產僅結算至退休年齡，不受退休後各項收支與折現率影響。
+def test_mr_projected_savings_independent_of_post_retirement_params(base_params: Params) -> None:
+    p_modified = replace(
+        base_params,
+        life_expectancy=base_params.life_expectancy + 10,
+        post_retirement_return=0.01,
+        monthly_expense_today=base_params.monthly_expense_today * 2.0,
+        labor_insurance_pension=0.0,
+        labor_pension_monthly=0.0,
+    )
+    res_base = calculate(base_params)
+    res_mod = calculate(p_modified)
+
+    assert res_mod.projected_savings == pytest.approx(res_base.projected_savings, rel=1e-7)
+
+
+# 把預期壽命增加 N 年；輸出 balances_raw 與 balances_charted 的長度必須剛好增加 N；依 PRD-02 與 PRD-03 提領期長度嚴格等於 Ad - Ar + 1 年。
+def test_mr_balance_trajectory_length_with_life_expectancy(base_params: Params) -> None:
+    years_added = 4
+    p_extended = replace(
+        base_params,
+        life_expectancy=base_params.life_expectancy + years_added,
+    )
+    res_base = calculate(base_params)
+    res_ext = calculate(p_extended)
+
+    assert len(res_ext.balances_raw) == len(res_base.balances_raw) + years_added
+    assert len(res_ext.balances_charted) == len(res_base.balances_charted) + years_added
+
+
+# 把退休後的每月支出調高；輸出 target_fund 必須嚴格大於原輸出；因提領期各期折現現金流均增加，所需目標準備金必定嚴格上升。
+def test_mr_target_fund_monotonicity_wrt_expenses(base_params: Params) -> None:
+    p_more_expense = replace(
+        base_params,
+        monthly_expense_today=base_params.monthly_expense_today + 10_000.0,
+    )
+    res_base = calculate(base_params)
+    res_more = calculate(p_more_expense)
+
+    assert res_more.target_fund > res_base.target_fund
+
+
+# 把勞保年金月領額調高（在淨支出大於 0 的區間）；輸出 target_fund 必須嚴格小於原輸出；因年金收入折抵提領需求使每期自付淨支出減少，所需目標準備金必定嚴格下降。
+def test_mr_target_fund_monotonicity_wrt_pension(base_params: Params) -> None:
+    p_more_pension = replace(
+        base_params,
+        labor_insurance_pension=base_params.labor_insurance_pension + 5_000.0,
+    )
+    res_base = calculate(base_params)
+    res_more = calculate(p_more_pension)
+
+    assert res_more.target_fund < res_base.target_fund
+
+
+# 把退休後投資報酬率調高；輸出 target_fund 必須嚴格小於原輸出；因折現率提高導致未來各期支出的現值下降，所需目標準備金必定嚴格下降。
+def test_mr_target_fund_monotonicity_wrt_post_retirement_return(base_params: Params) -> None:
+    p_higher_return = replace(
+        base_params,
+        post_retirement_return=base_params.post_retirement_return + 0.02,
+    )
+    res_base = calculate(base_params)
+    res_higher = calculate(p_higher_return)
+
+    assert res_higher.target_fund < res_base.target_fund
+
+
+# 把通貨膨脹率調高；輸出 target_fund 必須嚴格大於原輸出；依 PRD-02 與 PRD-08 支出端以通膨指數調增，通膨越高名目支出越大，所需目標準備金必定嚴格上升。
+def test_mr_target_fund_monotonicity_wrt_inflation_rate(base_params: Params) -> None:
+    p_higher_inf = replace(
+        base_params,
+        inflation_rate=base_params.inflation_rate + 0.02,
+    )
+    res_base = calculate(base_params)
+    res_higher = calculate(p_higher_inf)
+
+    assert res_higher.target_fund > res_base.target_fund
+
+
+# 把退休前年化投資報酬率調高；輸出 projected_savings 必須嚴格大於原輸出；依 PRD-01 複利月利率提高使得本金與定期定額增值更快，退休時累積資產必定嚴格增加。
+def test_mr_projected_savings_monotonicity_wrt_pre_retirement_return(base_params: Params) -> None:
+    p_higher_pre = replace(
+        base_params,
+        pre_retirement_return=base_params.pre_retirement_return + 0.02,
+    )
+    res_base = calculate(base_params)
+    res_higher = calculate(p_higher_pre)
+
+    assert res_higher.projected_savings > res_base.projected_savings
+
+
+# 當保證收入已大幅超過全部支出時，再額外增加其他收入；輸出 target_fund 必須維持完全不變；依 PRD-09 淨支出採 max(0, 支出 - 收入) 且盈餘不滾存，多餘收入不影響提領需求。
+def test_mr_surplus_income_non_rollover(base_params: Params) -> None:
+    p_surplus1 = replace(
+        base_params,
+        monthly_expense_today=10_000.0,
+        annual_recurring_expense=0.0,
+        other_income=200_000.0,
+        labor_insurance_pension=0.0,
+        labor_pension_monthly=0.0,
+        lump_sums=(),
+    )
+    p_surplus2 = replace(p_surplus1, other_income=400_000.0)
+
+    res1 = calculate(p_surplus1)
+    res2 = calculate(p_surplus2)
+
+    assert res2.target_fund == pytest.approx(res1.target_fund, rel=1e-7)
+
+
+# 把勞保年金請領年齡延後；輸出 target_fund 必須嚴格大於原輸出；依 PRD-06 延後請領縮短了領取年金年數，使退休後需自付的淨支出總現值增加。
+def test_mr_pension_start_age_delay_monotonicity(base_params: Params) -> None:
+    p_delayed = replace(
+        base_params,
+        labor_insurance_start_age=base_params.labor_insurance_start_age + 2,
+    )
+    res_base = calculate(base_params)
+    res_delayed = calculate(p_delayed)
+
+    assert res_delayed.target_fund > res_base.target_fund
+
+
+# 在退休前報酬率為 0 時，將月存金額由 M 變更為 2M；兩次結果的差值 (res_2M - res_M) 必須等於 (res_M - res_0M)；依 PRD-01 在 r=0 時累積資產退化為純線性累加。
+def test_mr_zero_return_projected_savings_linearity(base_params: Params) -> None:
+    m = 15_000.0
+    p_0m = replace(base_params, pre_retirement_return=0.0, monthly_investment=0.0)
+    p_1m = replace(base_params, pre_retirement_return=0.0, monthly_investment=m)
+    p_2m = replace(base_params, pre_retirement_return=0.0, monthly_investment=2 * m)
+
+    res_0m = calculate(p_0m)
+    res_1m = calculate(p_1m)
+    res_2m = calculate(p_2m)
+
+    diff1 = res_1m.projected_savings - res_0m.projected_savings
+    diff2 = res_2m.projected_savings - res_1m.projected_savings
+
+    assert diff2 == pytest.approx(diff1, rel=1e-7)

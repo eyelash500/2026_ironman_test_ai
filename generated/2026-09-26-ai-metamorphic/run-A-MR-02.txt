@@ -1,0 +1,153 @@
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "shadow"))
+
+from calc_fixed import LumpSum, Params, Result, calculate  # noqa: E402
+
+
+def get_base_params(**kwargs) -> Params:
+    """提供一組預設的有效參數，以便測試時只需覆寫關注的欄位。"""
+    base_args = dict(
+        current_age=30,
+        retirement_age=65,
+        life_expectancy=85,
+        current_savings=1_000_000.0,
+        monthly_investment=10_000.0,
+        monthly_expense_today=50_000.0,
+        pre_retirement_return=0.08,
+        post_retirement_return=0.04,
+        inflation_rate=0.02
+    )
+    base_args.update(kwargs)
+    return Params(**base_args)
+
+
+def test_mr_zero_return_linear_accumulation():
+    # 把目前存款增加 X 且退休前報酬率設為 0，projected_savings 必須剛好增加 X，因為 0% 報酬率下本金不會產生任何複利。
+    p1 = get_base_params(current_savings=1000.0, pre_retirement_return=0.0)
+    p2 = get_base_params(current_savings=2000.0, pre_retirement_return=0.0)
+    
+    r1 = calculate(p1)
+    r2 = calculate(p2)
+    
+    assert r2.projected_savings == pytest.approx(r1.projected_savings + 1000.0)
+
+
+def test_mr_monthly_annual_expense_equivalence():
+    # 把月支出完全轉移為等值的固定年支出，target_fund 與真實餘額軌跡必須完全相同，因為兩者共用相同的通膨基準與計算邏輯。
+    p1 = get_base_params(monthly_expense_today=10_000.0, annual_recurring_expense=0.0)
+    p2 = get_base_params(monthly_expense_today=0.0, annual_recurring_expense=120_000.0)
+    
+    r1 = calculate(p1)
+    r2 = calculate(p2)
+    
+    assert r2.target_fund == pytest.approx(r1.target_fund)
+    assert r2.balances_raw == pytest.approx(r1.balances_raw)
+
+
+def test_mr_financial_scaling():
+    # 把所有資產與收支金額等比例放大 k 倍，累積與目標金額都必須剛好放大 k 倍，因為折現、複利與下限求值對本金皆具備線性關係。
+    p1 = Params(
+        current_age=30, retirement_age=65, life_expectancy=85,
+        current_savings=100_000.0, monthly_investment=5_000.0,
+        monthly_expense_today=20_000.0, annual_recurring_expense=10_000.0,
+        labor_insurance_pension=10_000.0, labor_pension_monthly=5_000.0,
+        other_income=2_000.0
+    )
+    p2 = Params(
+        current_age=30, retirement_age=65, life_expectancy=85,
+        current_savings=200_000.0, monthly_investment=10_000.0,
+        monthly_expense_today=40_000.0, annual_recurring_expense=20_000.0,
+        labor_insurance_pension=20_000.0, labor_pension_monthly=10_000.0,
+        other_income=4_000.0
+    )
+    
+    r1 = calculate(p1)
+    r2 = calculate(p2)
+    
+    assert r2.projected_savings == pytest.approx(r1.projected_savings * 2.0)
+    assert r2.target_fund == pytest.approx(r1.target_fund * 2.0)
+    assert r2.retirement_gap == pytest.approx(r1.retirement_gap * 2.0)
+
+
+def test_mr_lump_sum_out_of_bounds():
+    # 在退休年齡之前與預期壽命之後增加大筆支出，計算結果必須與未增加任何大筆支出時完全相同，因為規格明訂僅 A_r ≤ A_e ≤ A_d 區間才計入。
+    p1 = get_base_params(lump_sums=())
+    p2 = get_base_params(lump_sums=(
+        LumpSum(age=p1.retirement_age - 1, amount=500_000.0),
+        LumpSum(age=p1.life_expectancy + 1, amount=500_000.0)
+    ))
+    
+    r1 = calculate(p1)
+    r2 = calculate(p2)
+    
+    assert r2.target_fund == pytest.approx(r1.target_fund)
+    assert r2.balances_raw == pytest.approx(r1.balances_raw)
+
+
+def test_mr_massive_income_floor():
+    # 把其他收入設為極大值確保退休後每年皆有大量結餘，target_fund 必須剛好為 0，因為規格規定淨支出下限為 0 且盈餘不滾存。
+    p = get_base_params(other_income=999_999_999_999.0)
+    r = calculate(p)
+    
+    assert r.target_fund == 0.0
+
+
+def test_mr_chart_balances_fidelity():
+    # 把目前存款設為 0 且支出極大致使產生真實的負餘額，圖表餘額陣列必須逐項等於真實餘額陣列，因為規格嚴格禁止代為下限截斷隱藏負值。
+    p = get_base_params(current_savings=0.0, monthly_investment=0.0, monthly_expense_today=999_999_999.0)
+    r = calculate(p)
+    
+    assert list(r.balances_charted) == list(r.balances_raw)
+    assert any(b < 0 for b in r.balances_raw)
+
+
+def test_mr_pension_age_delayed_ignored():
+    # 把勞保請領年齡延後至預期壽命之後，計算結果必須與無勞保時完全相同，因為未達請領年齡時金額為 0 且超出壽命區間不計。
+    p1 = get_base_params(labor_insurance_pension=0.0, labor_insurance_start_age=65)
+    p2 = get_base_params(labor_insurance_pension=50_000.0, labor_insurance_start_age=90)  # life_expectancy is 85
+    
+    r1 = calculate(p1)
+    r2 = calculate(p2)
+    
+    assert r2.target_fund == pytest.approx(r1.target_fund)
+    assert r2.balances_raw == pytest.approx(r1.balances_raw)
+
+
+def test_mr_inflation_increases_target():
+    # 把通貨膨脹率提高，目標金額 (target_fund) 必須嚴格變大，因為未來各年的名目支出皆會被更大的通膨倍數放大。
+    p1 = get_base_params(inflation_rate=0.01)
+    p2 = get_base_params(inflation_rate=0.03)
+    
+    r1 = calculate(p1)
+    r2 = calculate(p2)
+    
+    assert r2.target_fund > r1.target_fund
+
+
+def test_mr_post_retire_return_decreases_target():
+    # 把退休後報酬率提高，目標金額 (target_fund) 必須嚴格變小，因為折現率變高使得支撐同等提領金額所需的期初本金減少。
+    p1 = get_base_params(post_retirement_return=0.02)
+    p2 = get_base_params(post_retirement_return=0.05)
+    
+    r1 = calculate(p1)
+    r2 = calculate(p2)
+    
+    assert r2.target_fund < r1.target_fund
+
+
+def test_mr_savings_reduces_gap():
+    # 把目前存款增加，預估累積金會隨之增加，且退休金缺口 (retirement_gap) 必須嚴格變小，因為支出需求（目標金額）並未改變。
+    p1 = get_base_params(current_savings=1_000_000.0)
+    p2 = get_base_params(current_savings=2_000_000.0)
+    
+    r1 = calculate(p1)
+    r2 = calculate(p2)
+    
+    assert r2.target_fund == pytest.approx(r1.target_fund)
+    assert r2.projected_savings > r1.projected_savings
+    assert r2.retirement_gap < r1.retirement_gap
