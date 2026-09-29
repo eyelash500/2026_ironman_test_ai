@@ -1,0 +1,9 @@
+# 三、四條關係：fixed 全綠；legacy 只有 MR-04 紅（Day 25 已實測）
+E       assert False
+E        +  where False = <built-in function isclose>(-28813.50481278846, 0.0, abs_tol=0.001)
+E        +    where <built-in function isclose> = math.isclose
+
+tests/test_metamorphic.py:178: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_metamorphic.py::test_mr04_funded_exactly_closes_the_gap[legacy]
+1 failed, 19 passed in 0.06s

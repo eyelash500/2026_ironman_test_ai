@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- v2：依 PRD v1.2 修復。計算核心與 shadow/calc_fixed.py 逐位元對齊（tools/diff_fixed.py）。原版保留於同目錄。 -->
+<title>進階退休規劃試算</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Google tag (gtag.js) --> 
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-P0T4VKVGXV"></script> 
+    <script> 
+      window.dataLayer = window.dataLayer || []; 
+      function gtag(){dataLayer.push(arguments);} 
+      gtag('js', new Date()); 
+    
+      gtag('config', 'G-P0T4VKVGXV'); 
+    </script>
+
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #d3d3d3;
+            outline: none;
+            opacity: 0.7;
+            -webkit-transition: .2s;
+            transition: opacity .2s;
+            border-radius: 5px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #0ea5e9; /* sky-500 */
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        .form-input {
+            background-color: #f8fafc; /* slate-50 */
+            border-color: #94a3b8; /* slate-400 */
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-4xl">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-800">進階退休規劃試算</h1>
+            <p class="text-gray-600 mt-2">納入勞保、勞退，並區分退休前後不同報酬率，精準計算您的退休金缺口。</p>
+        </header>
+
+        <main class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- 輸入區 -->
+            <div class="md:col-span-2 bg-white p-6 rounded-xl shadow-lg space-y-6">
+                <h2 class="text-2xl font-bold text-gray-700 border-b pb-2">1. 輸入您的資訊</h2>
+                
+                <!-- 個人與財務資訊 -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                    <div>
+                        <label for="currentAge" class="block text-sm font-medium text-gray-700">目前年齡</label>
+                        <input type="number" id="currentAge" value="30" class="mt-1 block w-full rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 form-input">
+                    </div>
+                    <div>
+                        <label for="retirementAge" class="block text-sm font-medium text-gray-700">預計退休年齡</label>
+                        <input type="number" id="retirementAge" value="65" class="mt-1 block w-full rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 form-input">
+                    </div>
+                    <div>
+                        <label for="lifeExpectancy" class="block text-sm font-medium text-gray-700">預計活到幾歲</label>
+                        <input type="number" id="lifeExpectancy" value="85" class="mt-1 block w-full rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 form-input">
+                    </div>
+                    <div></div>
+                     <div>
+                        <label for="currentSavings" class="block text-sm font-medium text-gray-700">已準備的退休金（元）</label>
+                        <input type="text" inputmode="numeric" id="currentSavings" value="500,000" class="currency-input mt-1 block w-full rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 form-input">
+                    </div>
+                    <div>
+                        <label for="monthlyInvestment" class="block text-sm font-medium text-gray-700">每月可投資金額（元）</label>
+                        <input type="text" inputmode="numeric" id="monthlyInvestment" value="10,000" class="currency-input mt-1 block w-full rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 form-input">
+                    </div>
+                </div>
+
+                <!-- 退休後每月花費 -->
+                <div>
+                    <h3 class="text-lg font-medium text-gray-800">預計退休後每月花費（以現在幣值估算）</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-2">
+                        <!-- 費用項目 -->
+                        <div class="flex items-center"><label for="expenseFood" class="w-12">食</label><input type="text" inputmode="numeric" id="expenseFood" value="8,000" class="expense-input currency-input w-full rounded-md form-input"></div>
+                        <div class="flex items-center"><label for="expenseClothing" class="w-12">衣</label><input type="text" inputmode="numeric" id="expenseClothing" value="3,000" class="expense-input currency-input w-full rounded-md form-input"></div>
+                        <div class="flex items-center"><label for="expenseHousing" class="w-12">住</label><input type="text" inputmode="numeric" id="expenseHousing" value="15,000" class="expense-input currency-input w-full rounded-md form-input"></div>
+                        <div class="flex items-center"><label for="expenseTransport" class="w-12">行</label><input type="text" inputmode="numeric" id="expenseTransport" value="5,000" class="expense-input currency-input w-full rounded-md form-input"></div>
+                        <div class="flex items-center"><label for="expenseEducation" class="w-12">育</label><input type="text" inputmode="numeric" id="expenseEducation" value="2,000" class="expense-input currency-input w-full rounded-md form-input"></div>
+                        <div class="flex items-center"><label for="expenseRecreation" class="w-12">樂</label><input type="text" inputmode="numeric" id="expenseRecreation" value="7,000" class="expense-input currency-input w-full rounded-md form-input"></div>
+                    </div>
+                    <div class="mt-4 text-right"><span class="text-gray-600">總計：</span><span id="totalExpense" class="text-xl font-bold text-sky-600">40,000</span><span class="text-gray-600"> 元/月</span></div>
+                </div>
+                
+                 <!-- [MODIFIED] 退休後其他收入 -->
+                <div class="border-t pt-4">
+                    <h3 class="text-lg font-medium text-gray-800">預計退休後每月固定收入（選填）</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 mt-2">
+                        <div>
+                            <label for="laborInsurancePension" class="block text-sm font-medium text-gray-700">勞保老年年金（元/月）</label>
+                            <input type="text" inputmode="numeric" id="laborInsurancePension" value="15,000" class="currency-input mt-1 block w-full rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 form-input" placeholder="0">
+                        </div>
+                        <div>
+                            <label for="laborInsuranceStartAge" class="block text-sm font-medium text-gray-700">勞保請領年齡</label>
+                            <input type="number" id="laborInsuranceStartAge" value="65" class="mt-1 block w-full rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 form-input">
+                        </div>
+                        <div>
+                            <label for="laborPensionMonthly" class="block text-sm font-medium text-gray-700">勞退月領金額（元/月）</label>
+                            <input type="text" inputmode="numeric" id="laborPensionMonthly" value="5,000" class="currency-input mt-1 block w-full rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 form-input" placeholder="0">
+                        </div>
+                        <div>
+                            <label for="laborPensionStartAge" class="block text-sm font-medium text-gray-700">勞退請領年齡</label>
+                            <input type="number" id="laborPensionStartAge" value="60" class="mt-1 block w-full rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 form-input">
+                        </div>
+                        <div class="sm:col-span-2">
+                             <label for="otherIncome" class="block text-sm font-medium text-gray-700">其他收入（租金、股利等）（元/月）</label>
+                             <input type="text" inputmode="numeric" id="otherIncome" value="" class="currency-input mt-1 block w-full rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 form-input" placeholder="0">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 退休後單次/每年支出 -->
+                <div class="border-t pt-4 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-800">單次大筆支出（選填）</h3>
+                        <p class="text-sm text-gray-500">例如：醫療、換車等。</p>
+                        <div id="largeExpensesContainer" class="space-y-3 mt-2"></div>
+                        <button id="addExpenseBtn" type="button" class="mt-2 text-sm text-sky-600 hover:text-sky-800 font-medium">+ 新增一筆單次支出</button>
+                    </div>
+                     <div>
+                        <h3 class="text-lg font-medium text-gray-800">每年固定支出（選填）</h3>
+                        <p class="text-sm text-gray-500">例如：年度旅遊、保險費等。</p>
+                        <div id="annualExpensesContainer" class="space-y-3 mt-2"></div>
+                        <button id="addAnnualExpenseBtn" type="button" class="mt-2 text-sm text-sky-600 hover:text-sky-800 font-medium">+ 新增一筆年度支出</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 參數設定 -->
+            <div class="md:col-span-2 bg-white p-6 rounded-xl shadow-lg space-y-4">
+                <h2 class="text-2xl font-bold text-gray-700 border-b pb-2">2. 參數設定</h2>
+                
+                <!-- [NEW] 區分報酬率 -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <label for="preRetirementReturn" class="block font-medium text-gray-700">退休前累積期報酬率: <span id="preRetirementReturnValue" class="font-bold text-sky-600">8</span>%</label>
+                        <input type="range" id="preRetirementReturn" min="1" max="15" value="8" class="mt-1 w-full">
+                    </div>
+                    <div>
+                        <label for="postRetirementReturn" class="block font-medium text-gray-700">退休後提領期報酬率: <span id="postRetirementReturnValue" class="font-bold text-sky-600">4</span>%</label>
+                        <input type="range" id="postRetirementReturn" min="1" max="10" value="4" class="mt-1 w-full">
+                    </div>
+                </div>
+                <div>
+                    <label for="inflationRate" class="block font-medium text-gray-700">預估平均年通膨率: <span id="inflationRateValue" class="font-bold text-sky-600">2.5</span>%</label>
+                    <input type="range" id="inflationRate" min="0" max="10" step="0.5" value="2.5" class="mt-1 w-full">
+                </div>
+            </div>
+
+            <!-- 計算按鈕 -->
+            <div class="md:col-span-2">
+                <button id="calculateBtn" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-300">開始計算</button>
+            </div>
+            
+            <!-- 結果區 -->
+            <div id="results" class="md:col-span-2 bg-white p-6 rounded-xl shadow-lg space-y-6 hidden">
+                 <h2 class="text-2xl font-bold text-gray-700 border-b pb-2">3. 分析結果</h2>
+                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                     <div><p class="text-sm text-gray-500">目標退休金總額</p><p id="targetFund" class="text-2xl font-bold text-blue-600">0</p></div>
+                     <div><p class="text-sm text-gray-500">預計累積總額</p><p id="projectedSavings" class="text-2xl font-bold text-green-600">0</p></div>
+                     <div><p class="text-sm text-gray-500">退休金缺口</p><p id="retirementGap" class="text-2xl font-bold text-red-600">0</p></div>
+                 </div>
+                 <div class="w-full bg-gray-100 rounded-lg p-4"><div class="relative h-40"><div class="absolute bottom-0 left-1/4 w-1/4 h-full flex flex-col justify-end"><div id="targetBar" class="bg-blue-500 rounded-t-md transition-all duration-1000" style="height: 0%;"></div><p class="text-center text-xs mt-1">目標</p></div><div class="absolute bottom-0 right-1/4 w-1/4 h-full flex flex-col justify-end"><div id="projectedBar" class="bg-green-500 rounded-t-md transition-all duration-1000" style="height: 0%;"></div><p class="text-center text-xs mt-1">預計累積</p></div></div></div>
+                 <div id="resultMessage" class="text-center font-medium p-3 rounded-lg"></div>
+                 <div class="mt-6 border-t pt-4"><h3 class="text-lg font-semibold text-gray-800 text-center mb-2">資產累積與提領曲線圖</h3><canvas id="retirementChart"></canvas></div>
+            </div>
+        </main>
+        
+        <footer class="text-center mt-8 text-sm text-gray-500 space-y-2">
+             <p class="inline-flex items-center flex-wrap justify-center gap-x-1">
+                <a href="https://ithelp.ithome.com.tw/users/20103826/ironman/8423" class="text-sky-600 hover:underline">30 天打造你的 AI 客戶金融助理團隊</a>
+                <span>© 2025 by</span>
+                <a href="https://www.linkedin.com/in/tony-wu-5baa4b81/" class="text-sky-600 hover:underline">Eyelash＊睫毛</a>
+                <span>is licensed under</span>
+                <a href="https://creativecommons.org/licenses/by-nd/4.0/" class="whitespace-nowrap inline-flex items-center text-sky-600 hover:underline">CC BY-ND 4.0
+                    <img src="https://mirrors.creativecommons.org/presskit/icons/cc.svg" alt="CC" style="height: 1.2em; margin-left: .3em; vertical-align: text-bottom;">
+                    <img src="https://mirrors.creativecommons.org/presskit/icons/by.svg" alt="BY" style="height: 1.2em; margin-left: .2em; vertical-align: text-bottom;">
+                    <img src="https://mirrors.creativecommons.org/presskit/icons/nd.svg" alt="ND" style="height: 1.2em; margin-left: .2em; vertical-align: text-bottom;"> 
+                </a>
+             </p>
+        </footer>
+    </div>
+
+    <script>
+        // --- DOM & Variables ---
+        const totalExpenseEl = document.getElementById('totalExpense');
+        const calculateBtn = document.getElementById('calculateBtn');
+        const resultsEl = document.getElementById('results');
+        const largeExpensesContainer = document.getElementById('largeExpensesContainer');
+        const annualExpensesContainer = document.getElementById('annualExpensesContainer');
+        let retirementChart = null;
+
+        // --- Utility Functions ---
+        const formatNumber = (num) => new Intl.NumberFormat('en-US').format(num);
+        // PRD-04：不得靜默補零。空白或非數字回 NaN，由表單層阻斷並提示（原版此處 `|| 0` 是缺陷 D）。
+        const parseNumber = (str) => {
+            const s = String(str).replace(/,/g, '').trim();
+            return s === '' ? NaN : parseFloat(s);
+        };
+        const showError = (msg) => {
+            const el = document.getElementById('resultMessage');
+            el.textContent = msg;
+            el.className = 'text-center font-medium p-3 rounded-lg bg-red-100 text-red-800';
+            document.getElementById('results').classList.remove('hidden');
+        };
+        const formatCurrency = (num) => new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num).replace('NT$', '').trim();
+
+        // --- Event Handlers ---
+        function setupSlider(sliderId, valueId) {
+            const slider = document.getElementById(sliderId);
+            const valueEl = document.getElementById(valueId);
+            slider.addEventListener('input', (e) => valueEl.textContent = e.target.value);
+        }
+        setupSlider('preRetirementReturn', 'preRetirementReturnValue');
+        setupSlider('postRetirementReturn', 'postRetirementReturnValue');
+        setupSlider('inflationRate', 'inflationRateValue');
+
+        document.querySelector('main').addEventListener('input', (e) => {
+            if (e.target.classList.contains('currency-input')) {
+                const numVal = e.target.value.replace(/[^0-9]/g, '');
+                e.target.value = numVal ? formatNumber(numVal) : '';
+            }
+            if (e.target.classList.contains('expense-input')) {
+                updateTotalExpense();
+            }
+        });
+        
+        function updateTotalExpense() {
+            const total = Array.from(document.querySelectorAll('.expense-input')).reduce((sum, input) => sum + parseNumber(input.value), 0);
+            totalExpenseEl.textContent = formatNumber(total);
+        }
+
+        function addExpenseItem(container, type) {
+            const item = document.createElement('div');
+            item.className = 'flex items-center gap-2 p-2 bg-gray-50 rounded-md border border-gray-400';
+            if (type === 'large') {
+                item.innerHTML = `<label class="text-sm">在</label><input type="number" placeholder="年齡" class="large-expense-age w-20 rounded-md border-gray-400 text-sm"><label class="text-sm">歲支出</label><input type="text" inputmode="numeric" placeholder="金額" class="large-expense-amount currency-input flex-grow rounded-md border-gray-400 text-sm"><button type="button" class="remove-btn text-red-500 font-bold px-2">&times;</button>`;
+            } else {
+                item.innerHTML = `<input type="text" placeholder="項目" class="annual-expense-desc flex-grow rounded-md border-gray-400 text-sm"><label class="text-sm">每年</label><input type="text" inputmode="numeric" placeholder="金額" class="annual-expense-amount currency-input w-24 rounded-md border-gray-400 text-sm"><button type="button" class="remove-btn text-red-500 font-bold px-2">&times;</button>`;
+            }
+            container.appendChild(item);
+        }
+        document.getElementById('addExpenseBtn').addEventListener('click', () => addExpenseItem(largeExpensesContainer, 'large'));
+        document.getElementById('addAnnualExpenseBtn').addEventListener('click', () => addExpenseItem(annualExpensesContainer, 'annual'));
+        
+        document.querySelector('main').addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-btn')) {
+                e.target.parentElement.remove();
+            }
+        });
+
+        // --- Charting ---
+        function renderChart(labels, data) {
+            const ctx = document.getElementById('retirementChart').getContext('2d');
+            if (retirementChart) retirementChart.destroy();
+            retirementChart = new Chart(ctx, {
+                type: 'line', data: { labels, datasets: [{ label: '資產總額', data, borderColor: '#0ea5e9', backgroundColor: 'rgba(14, 165, 233, 0.1)', fill: true, tension: 0.1 }] },
+                options: { responsive: true, scales: { y: { ticks: { callback: v => v >= 1e8 ? `${v/1e8}億` : (v >= 1e4 ? `${v/1e4}萬` : v) } }, x: { title: { display: true, text: '年齡' } } }, plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${formatCurrency(c.parsed.y)}` } } } }
+            });
+        }
+        
+        // --- 計算核心（PRD v1.2）：與 shadow/calc_fixed.py 逐位元對齊，見 oracle/calc_fixed.js 與 tools/diff_fixed.py ---
+        function calculate(p) {
+          // PRD-04: 輸入校驗
+          if (!(p.current_age > 0 && p.current_age < p.retirement_age && p.retirement_age < p.life_expectancy)) {
+            throw new Error("年齡必須為正整數且 current_age < retirement_age < life_expectancy");
+          }
+          if (p.labor_insurance_start_age < 0 || p.labor_pension_start_age < 0) {
+            throw new Error("請領年齡不得為負數");
+          }
+          const amounts = [
+            p.current_savings, p.monthly_investment, p.monthly_expense_today,
+            p.annual_recurring_expense, p.labor_insurance_pension,
+            p.labor_pension_monthly, p.other_income,
+          ];
+          if (amounts.some((amt) => amt < 0)) {
+            throw new Error("金額不得為負數");
+          }
+          for (const ls of p.lump_sums) {
+            if (ls.age < 0) throw new Error("大筆支出年齡不得為負數");
+            if (ls.amount < 0) throw new Error("大筆支出金額不得為負數");
+          }
+
+          // PRD-01: 累積期增值
+          const months = (p.retirement_age - p.current_age) * 12;
+          const r_monthly = p.pre_retirement_return / 12.0;
+          let projected_savings;
+          if (r_monthly === 0.0) {
+            projected_savings = p.current_savings + p.monthly_investment * months;
+          } else {
+            const compounded_savings = p.current_savings * Math.pow(1.0 + r_monthly, months);
+            const accumulated_investment = p.monthly_investment * ((Math.pow(1.0 + r_monthly, months) - 1.0) / r_monthly);
+            projected_savings = compounded_savings + accumulated_investment;
+          }
+
+          const net_expenses = [];
+
+          // PRD-02: 目標金額折現（共 A_d - A_r + 1 年，第一期對應 A_r）
+          for (let t = p.retirement_age; t <= p.life_expectancy; t++) {
+            // PRD-08: 固定年支出與月支出合併計算
+            const expense_base_today = p.monthly_expense_today * 12 + p.annual_recurring_expense;
+            // PRD-02, PRD-08: 支出端通膨基準鎖現齡 A_c
+            let total_expense = expense_base_today * Math.pow(1.0 + p.inflation_rate, t - p.current_age);
+
+            // PRD-05: 大筆支出區間，通膨基準鎖 A_c
+            for (const ls of p.lump_sums) {
+              if (ls.age === t) {
+                total_expense += ls.amount * Math.pow(1.0 + p.inflation_rate, t - p.current_age);
+              }
+            }
+
+            let total_income = 0.0;
+
+            // PRD-06, PRD-10: 勞保年金，通膨基準鎖 A_p
+            if (t >= p.labor_insurance_start_age && p.labor_insurance_start_age > 0) {
+              total_income += p.labor_insurance_pension * 12 * Math.pow(1.0 + p.inflation_rate, t - p.labor_insurance_start_age);
+            }
+
+            // PRD-07, PRD-10: 勞退月領，通膨基準鎖 A_p
+            if (t >= p.labor_pension_start_age && p.labor_pension_start_age > 0) {
+              total_income += p.labor_pension_monthly * 12 * Math.pow(1.0 + p.inflation_rate, t - p.labor_pension_start_age);
+            }
+
+            // PRD-10: 其他收入視為今日幣值，通膨基準鎖 A_c
+            total_income += p.other_income * 12 * Math.pow(1.0 + p.inflation_rate, t - p.current_age);
+
+            // PRD-09: 淨支出下限 max(0, 支出 - 收入)
+            const net_exp = Math.max(0.0, total_expense - total_income);
+            net_expenses.push(net_exp);
+          }
+
+          let target_fund = 0.0;
+          const balances = [];
+          let current_balance = projected_savings;
+
+          net_expenses.forEach((net_exp, idx) => {
+            // PRD-02: 目標金額折現
+            target_fund += net_exp / Math.pow(1.0 + p.post_retirement_return, idx);
+
+            // PRD-03: 提領餘額軌跡，期初扣款，禁止 Math.max(0, ...) 截斷
+            const balance_after_deduction = current_balance - net_exp;
+            current_balance = balance_after_deduction * (1.0 + p.post_retirement_return);
+            balances.push(current_balance);
+          });
+
+          return {
+            projected_savings,
+            target_fund,
+            retirement_gap: target_fund - projected_savings,
+            balances_raw: balances,
+            // PRD-12: 圖表餘額保真，必須逐項等於 balances_raw，不得下限截斷
+            balances_charted: balances,
+          };
+        }
+
+        // --- Main Calculation ---
+        calculateBtn.addEventListener('click', () => {
+            // 1. Get all inputs
+            const currentAge = parseInt(document.getElementById('currentAge').value);
+            const retirementAge = parseInt(document.getElementById('retirementAge').value);
+            const lifeExpectancy = parseInt(document.getElementById('lifeExpectancy').value);
+            const currentSavings = parseNumber(document.getElementById('currentSavings').value);
+            const monthlyInvestment = parseNumber(document.getElementById('monthlyInvestment').value);
+            const totalMonthlyExpense = Array.from(document.querySelectorAll('.expense-input')).reduce((sum, input) => sum + parseNumber(input.value), 0);
+            
+            const laborInsurancePension = parseNumber(document.getElementById('laborInsurancePension').value);
+            const laborInsuranceStartAge = parseInt(document.getElementById('laborInsuranceStartAge').value);
+            const laborPensionMonthly = parseNumber(document.getElementById('laborPensionMonthly').value);
+            const laborPensionStartAge = parseInt(document.getElementById('laborPensionStartAge').value);
+            const otherIncome = parseNumber(document.getElementById('otherIncome').value);
+
+            const preRetirementReturn = parseFloat(document.getElementById('preRetirementReturn').value) / 100;
+            const postRetirementReturn = parseFloat(document.getElementById('postRetirementReturn').value) / 100;
+            const inflationRate = parseFloat(document.getElementById('inflationRate').value) / 100;
+
+            // 2. 表單層阻斷（PRD-04）：任何欄位不是數字就不算，並說是哪一欄
+            const annualRecurringExpense = Array.from(document.querySelectorAll('.annual-expense-amount')).reduce((sum, input) => sum + parseNumber(input.value), 0);
+            const lumpSums = Array.from(document.querySelectorAll('#largeExpensesContainer > div')).map(item => ({
+                age: parseInt(item.querySelector('.large-expense-age').value),
+                amount: parseNumber(item.querySelector('.large-expense-amount').value),
+            }));
+            const fields = { 現齡: currentAge, 退休年齡: retirementAge, 預期壽命: lifeExpectancy, 目前存款: currentSavings, 每月投資: monthlyInvestment, 每月支出: totalMonthlyExpense, 固定年支出: annualRecurringExpense, 勞保年金: laborInsurancePension, 勞保請領年齡: laborInsuranceStartAge, 勞退月領: laborPensionMonthly, 勞退請領年齡: laborPensionStartAge, 其他收入: otherIncome, 退休前報酬率: preRetirementReturn, 退休後報酬率: postRetirementReturn, 通膨率: inflationRate };
+            const bad = Object.entries(fields).filter(([, v]) => Number.isNaN(v)).map(([k]) => k);
+            if (lumpSums.some(ls => Number.isNaN(ls.age) || Number.isNaN(ls.amount))) bad.push('大筆支出');
+            if (bad.length) { showError(`以下欄位不是數字：${bad.join('、')}。請修正後再試算。`); return; }
+
+            // 3. 計算（PRD v1.2）
+            const p = {
+                current_age: currentAge, retirement_age: retirementAge, life_expectancy: lifeExpectancy,
+                current_savings: currentSavings, monthly_investment: monthlyInvestment,
+                monthly_expense_today: totalMonthlyExpense, annual_recurring_expense: annualRecurringExpense,
+                labor_insurance_pension: laborInsurancePension, labor_insurance_start_age: laborInsuranceStartAge,
+                labor_pension_monthly: laborPensionMonthly, labor_pension_start_age: laborPensionStartAge,
+                other_income: otherIncome,
+                pre_retirement_return: preRetirementReturn, post_retirement_return: postRetirementReturn,
+                inflation_rate: inflationRate, lump_sums: lumpSums,
+            };
+            let result;
+            try { result = calculate(p); } catch (e) { showError(e.message); return; }
+            const projectedSavings = result.projected_savings;
+            const targetFund = result.target_fund;
+
+            // PRD-05／PRD-11：區間外的大筆支出已忽略，介面明示
+            const ignoredLumps = lumpSums.filter(ls => ls.age < retirementAge || ls.age > lifeExpectancy);
+
+            // 4. 圖表資料（PRD-03／PRD-12：餘額逐項等於真實餘額，不夾 0；每個年齡一個點）
+            const chartLabels = [], assetData = [];
+            const workingYears = retirementAge - currentAge;
+            const rM = preRetirementReturn / 12;
+            for (let i = 0; i < workingYears; i++) {
+                const m = i * 12;
+                const fv = rM === 0 ? currentSavings + monthlyInvestment * m
+                    : currentSavings * Math.pow(1 + rM, m) + monthlyInvestment * ((Math.pow(1 + rM, m) - 1) / rM);
+                chartLabels.push(currentAge + i);
+                assetData.push(fv);
+            }
+            result.balances_charted.forEach((b, idx) => {
+                chartLabels.push(retirementAge + idx);
+                assetData.push(b);
+            });
+
+            // 5. Display results
+            document.getElementById('targetFund').textContent = formatCurrency(targetFund);
+            document.getElementById('projectedSavings').textContent = formatCurrency(projectedSavings);
+            const retirementGap = targetFund - projectedSavings;
+            const gapEl = document.getElementById('retirementGap');
+            const resultMessageEl = document.getElementById('resultMessage');
+            
+            if (retirementGap <= 0) {
+                gapEl.textContent = '沒有缺口';
+                gapEl.className = 'text-2xl font-bold text-black';
+                resultMessageEl.textContent = `恭喜您！您的退休準備金相當充足，預計將多出 ${formatCurrency(Math.abs(retirementGap))} 元。`;
+                resultMessageEl.className = 'text-center font-medium p-3 rounded-lg bg-green-100 text-green-800';
+            } else {
+                gapEl.textContent = formatCurrency(retirementGap);
+                gapEl.className = 'text-2xl font-bold text-red-600';
+                resultMessageEl.textContent = '注意！您的退休準備金可能不足，建議及早規劃。';
+                resultMessageEl.className = 'text-center font-medium p-3 rounded-lg bg-red-100 text-red-800';
+            }
+
+            const maxVal = Math.max(targetFund, projectedSavings);
+            document.getElementById('targetBar').style.height = `${maxVal > 0 ? (targetFund / maxVal) * 100 : 0}%`;
+            document.getElementById('projectedBar').style.height = `${maxVal > 0 ? (projectedSavings / maxVal) * 100 : 0}%`;
+
+            if (ignoredLumps.length) {
+                resultMessageEl.textContent += `（有 ${ignoredLumps.length} 筆大筆支出落在退休期間之外，已不計入。）`;
+            }
+            renderChart(chartLabels, assetData);
+            resultsEl.classList.remove('hidden');
+            resultsEl.scrollIntoView({ behavior: 'smooth' });
+        });
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.currency-input').forEach(input => {
+                const numVal = parseNumber(input.value);
+                input.value = numVal > 0 ? formatNumber(numVal) : '';
+            });
+            updateTotalExpense();
+        });
+    </script>
+</body>
+</html>
+

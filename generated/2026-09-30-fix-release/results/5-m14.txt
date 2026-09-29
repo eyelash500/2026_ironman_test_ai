@@ -1,0 +1,16 @@
+# M14：補上非零收入的關係。calc_fixed 綠；逐條跑十四個變異體，M14 必須被殺掉
+..                                                                       [100%]
+2 passed in 0.01s
+---
+test_prd10_income_indexed.py｜關係 2 條｜變異體 14 個
+
+  test_prd10_indexed_income_offsets_part_of_inflation        殺掉 1           M14
+  test_prd10_income_actually_reduces_target                  這批錯法碰不到        
+
+計分 2 條｜聯集殺掉 1 / 14（7.1%）
+沒有任何一條抓得到：M01、M02、M03、M04、M05、M06、M07、M08、M09、M10、M11、M12、M13
+這批錯法碰不到的關係：1 / 2
+
+**這把尺只能證實，不能證偽。**
+殺不掉不等於沒用——那十四種錯法是人設計的（Day 20）。
+

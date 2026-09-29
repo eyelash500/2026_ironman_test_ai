@@ -1,0 +1,6 @@
+# 四、oracle/calc_fixed.js 對 shadow/calc_fixed.py，505 組（含 5 組違規），預期 0 不符
+反向差分｜505 組輸入｜種子 20260929｜rel_tol=1e-09
+比對 2005 項（3 純量 + balances_raw 序列，每組 4 項；拋錯者 1 項）
+不符：0
+
+**JS 移植與 Python 實作逐位元對齊。**
